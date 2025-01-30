@@ -1,19 +1,22 @@
 use std::borrow::Cow;
 use std::fmt::Debug;
+use std::io;
 use std::net::ToSocketAddrs;
 use std::time::Duration;
-use std::io;
 
 use hyper::header::{Header, HeaderFormat};
 
-use crate::error::SSDPResult;
-use crate::header::{HeaderRef, HeaderMut, MX};
-use crate::message::{self, MessageType, Listen, Config};
-use crate::message::ssdp::SSDPMessage;
-use crate::message::multicast::{self, Multicast};
-use crate::receiver::{SSDPReceiver, FromRawSSDP};
-use crate::net;
+use crate::error::{
+    SSDPError::{InvalidMethod, MissingHeader},
+    SSDPResult,
+};
 
+use crate::header::{HeaderMut, HeaderRef, MX};
+use crate::message::multicast::{self, Multicast};
+use crate::message::ssdp::SSDPMessage;
+use crate::message::{self, Config, Listen, MessageType};
+use crate::net;
+use crate::receiver::{FromRawSSDP, SSDPReceiver};
 
 /// Overhead to add to device response times to account for transport time.
 const NETWORK_TIMEOUT_OVERHEAD: u8 = 1;
@@ -30,7 +33,9 @@ pub struct SearchRequest {
 impl SearchRequest {
     /// Construct a new SearchRequest.
     pub fn new() -> SearchRequest {
-        SearchRequest { message: SSDPMessage::new(MessageType::Search) }
+        SearchRequest {
+            message: SSDPMessage::new(MessageType::Search),
+        }
     }
 
     /// Send this search request to a single host.
@@ -80,7 +85,7 @@ impl Default for SearchRequest {
 fn multicast_timeout(mx: Option<&MX>) -> SSDPResult<Duration> {
     match mx {
         Some(&MX(n)) => Ok(Duration::new((n + NETWORK_TIMEOUT_OVERHEAD) as u64, 0)),
-        None => Err("Multicast Searches Require An MX Header")?,
+        None => Err(MissingHeader("Multicast Searches Require An MX Header")),
     }
 }
 
@@ -97,7 +102,7 @@ impl FromRawSSDP for SearchRequest {
         let message = SSDPMessage::raw_ssdp(bytes)?;
 
         if message.message_type() != MessageType::Search {
-            Err("SSDP Message Received Is Not A SearchRequest")?
+            Err(InvalidMethod("SSDP Message Received Is Not A SearchRequest".into()))
         } else {
             Ok(SearchRequest { message: message })
         }
@@ -106,7 +111,8 @@ impl FromRawSSDP for SearchRequest {
 
 impl HeaderRef for SearchRequest {
     fn get<H>(&self) -> Option<&H>
-        where H: Header + HeaderFormat
+    where
+        H: Header + HeaderFormat,
     {
         self.message.get::<H>()
     }
@@ -118,13 +124,15 @@ impl HeaderRef for SearchRequest {
 
 impl HeaderMut for SearchRequest {
     fn set<H>(&mut self, value: H)
-        where H: Header + HeaderFormat
+    where
+        H: Header + HeaderFormat,
     {
         self.message.set(value)
     }
 
     fn set_raw<K>(&mut self, name: K, value: Vec<Vec<u8>>)
-        where K: Into<Cow<'static, str>> + Debug
+    where
+        K: Into<Cow<'static, str>> + Debug,
     {
         self.message.set_raw(name, value)
     }
@@ -139,7 +147,9 @@ pub struct SearchResponse {
 impl SearchResponse {
     /// Construct a new SearchResponse.
     pub fn new() -> SearchResponse {
-        SearchResponse { message: SSDPMessage::new(MessageType::Response) }
+        SearchResponse {
+            message: SSDPMessage::new(MessageType::Response),
+        }
     }
 
     /// Send this search response to a single host.
@@ -188,7 +198,7 @@ impl FromRawSSDP for SearchResponse {
         let message = SSDPMessage::raw_ssdp(bytes)?;
 
         if message.message_type() != MessageType::Response {
-            Err("SSDP Message Received Is Not A SearchResponse")?
+            Err(InvalidMethod("SSDP Message Received Is Not A SearchResponse".into()))
         } else {
             Ok(SearchResponse { message: message })
         }
@@ -197,7 +207,8 @@ impl FromRawSSDP for SearchResponse {
 
 impl HeaderRef for SearchResponse {
     fn get<H>(&self) -> Option<&H>
-        where H: Header + HeaderFormat
+    where
+        H: Header + HeaderFormat,
     {
         self.message.get::<H>()
     }
@@ -209,13 +220,15 @@ impl HeaderRef for SearchResponse {
 
 impl HeaderMut for SearchResponse {
     fn set<H>(&mut self, value: H)
-        where H: Header + HeaderFormat
+    where
+        H: Header + HeaderFormat,
     {
         self.message.set(value)
     }
 
     fn set_raw<K>(&mut self, name: K, value: Vec<Vec<u8>>)
-        where K: Into<Cow<'static, str>> + Debug
+    where
+        K: Into<Cow<'static, str>> + Debug,
     {
         self.message.set_raw(name, value)
     }

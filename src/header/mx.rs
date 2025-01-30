@@ -3,7 +3,7 @@ use std::fmt::{Formatter, Result};
 use hyper::error::{self, Error};
 use hyper::header::{HeaderFormat, Header};
 
-use crate::{SSDPResult, SSDPErrorKind};
+use crate::{SSDPResult, SSDPError};
 
 const MX_HEADER_NAME: &'static str = "MX";
 
@@ -27,7 +27,7 @@ pub struct MX(pub u8);
 impl MX {
     pub fn new(wait_bound: u8) -> SSDPResult<MX> {
         if wait_bound < MX_HEADER_MIN || wait_bound > MX_HEADER_MAX {
-            Err(SSDPErrorKind::InvalidHeader(MX_HEADER_NAME, "Supplied Wait Bound Is Out Of Bounds").into())
+            Err(SSDPError::InvalidHeader(MX_HEADER_NAME, "Supplied Wait Bound Is Out Of Bounds"))
         } else {
             Ok(MX(wait_bound))
         }

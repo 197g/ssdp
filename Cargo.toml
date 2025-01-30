@@ -16,9 +16,9 @@ readme = "README.md"
 [dependencies]
 log = "0.3"
 net2 = "0.2.23"
+netdev = "0.32.0"
 time = "0.1"
-error-chain = "0.10"
-get_if_addrs = "0.5.3"
+quick-error = "2"
 
 [dependencies.hyper]
 default-features = false

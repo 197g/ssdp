@@ -20,7 +20,7 @@ use crate::header::{HeaderMut, HeaderRef};
 use crate::message::MessageType;
 use crate::net;
 use crate::receiver::FromRawSSDP;
-use crate::{SSDPErrorKind, SSDPResult};
+use crate::{SSDPError, SSDPResult};
 
 /// Only Valid `SearchResponse` Code
 const VALID_RESPONSE_CODE: u16 = 200;
@@ -207,8 +207,7 @@ impl FromRawSSDP for SSDPMessage {
                 }
                 Err(err) => {
                     debug!("Failed parsing http response: {}, data: {}", err, String::from_utf8_lossy(bytes));
-
-                    Err(SSDPErrorKind::InvalidHttp(bytes.to_owned()).into())
+                    return Err(err)?;
                 }
             }
         }
@@ -240,13 +239,13 @@ fn message_from_request(parts: Incoming<(Method, RequestUri)>) -> SSDPResult<SSD
                 method: MessageType::Search,
                 headers: headers,
             }),
-            _ => Err(SSDPErrorKind::InvalidMethod(n).into()),
+            _ => Err(SSDPError::InvalidMethod(n).into()),
         },
-        (n, RequestUri::Star) => Err(SSDPErrorKind::InvalidMethod(n.to_string()).into()),
+        (n, RequestUri::Star) => Err(SSDPError::InvalidMethod(n.to_string()).into()),
         (_, RequestUri::AbsolutePath(n)) | (_, RequestUri::Authority(n)) => {
-            Err(SSDPErrorKind::InvalidUri(n).into())
+            Err(SSDPError::InvalidUri(n).into())
         }
-        (_, RequestUri::AbsoluteUri(n)) => Err(SSDPErrorKind::InvalidUri(n.into_string()).into()),
+        (_, RequestUri::AbsoluteUri(n)) => Err(SSDPError::InvalidUri(n.into_string()).into()),
     }
 }
 
@@ -267,7 +266,7 @@ fn message_from_response(parts: Incoming<RawStatus>) -> SSDPResult<SSDPMessage> 
 /// Validate the HTTP version for an SSDP message.
 fn validate_http_version(version: HttpVersion) -> SSDPResult<()> {
     if version != HttpVersion::Http11 {
-        Err(SSDPErrorKind::InvalidHttpVersion.into())
+        Err(SSDPError::InvalidHttpVersion.into())
     } else {
         Ok(())
     }
@@ -281,7 +280,7 @@ where
     // Shouldn't have to do this but hyper doesn't make sure that HTTP/1.1
     // messages contain Host headers so we will assure conformance ourselves.
     if headers.get::<Host>().is_none() {
-        Err(SSDPErrorKind::MissingHeader(Host::header_name()).into())
+        Err(SSDPError::MissingHeader(Host::header_name()).into())
     } else {
         Ok(())
     }
@@ -290,7 +289,7 @@ where
 /// Validate the response code for an SSDP message.
 fn validate_response_code(code: u16) -> SSDPResult<()> {
     if code != VALID_RESPONSE_CODE {
-        Err(SSDPErrorKind::ResponseCode(code).into())
+        Err(SSDPError::ResponseCode(code).into())
     } else {
         Ok(())
     }

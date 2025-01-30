@@ -3,13 +3,12 @@ use std::fmt::Debug;
 
 use hyper::header::{Header, HeaderFormat};
 
-use crate::error::SSDPResult;
-use crate::header::{HeaderRef, HeaderMut};
-use crate::message::{MessageType, Listen, Config};
-use crate::message::ssdp::SSDPMessage;
+use crate::error::{SSDPError::InvalidMethod, SSDPResult};
+use crate::header::{HeaderMut, HeaderRef};
 use crate::message::multicast::{self, Multicast};
+use crate::message::ssdp::SSDPMessage;
+use crate::message::{Config, Listen, MessageType};
 use crate::receiver::FromRawSSDP;
-
 
 /// Notify message that can be sent via multicast to devices on the network.
 #[derive(Debug, Clone)]
@@ -20,7 +19,9 @@ pub struct NotifyMessage {
 impl NotifyMessage {
     /// Construct a new NotifyMessage.
     pub fn new() -> Self {
-        NotifyMessage { message: SSDPMessage::new(MessageType::Notify) }
+        NotifyMessage {
+            message: SSDPMessage::new(MessageType::Notify),
+        }
     }
 }
 
@@ -44,7 +45,7 @@ impl FromRawSSDP for NotifyMessage {
         let message = SSDPMessage::raw_ssdp(bytes)?;
 
         if message.message_type() != MessageType::Notify {
-            Err("SSDP Message Received Is Not A NotifyMessage")?
+            Err(InvalidMethod("SSDP Message Received Is Not A NotifyMessage".into()))
         } else {
             Ok(NotifyMessage { message: message })
         }
@@ -53,7 +54,8 @@ impl FromRawSSDP for NotifyMessage {
 
 impl HeaderRef for NotifyMessage {
     fn get<H>(&self) -> Option<&H>
-        where H: Header + HeaderFormat
+    where
+        H: Header + HeaderFormat,
     {
         self.message.get::<H>()
     }
@@ -65,13 +67,15 @@ impl HeaderRef for NotifyMessage {
 
 impl HeaderMut for NotifyMessage {
     fn set<H>(&mut self, value: H)
-        where H: Header + HeaderFormat
+    where
+        H: Header + HeaderFormat,
     {
         self.message.set(value)
     }
 
     fn set_raw<K>(&mut self, name: K, value: Vec<Vec<u8>>)
-        where K: Into<Cow<'static, str>> + Debug
+    where
+        K: Into<Cow<'static, str>> + Debug,
     {
         self.message.set_raw(name, value)
     }

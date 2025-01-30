@@ -1,7 +1,7 @@
 //! Messaging primitives for discovering devices and services.
 
 use std::io;
-use std::net::SocketAddr;
+use std::net::{IpAddr, SocketAddr};
 
 use crate::net::connector::UdpConnector;
 use crate::net::IpVersionMode;
@@ -12,7 +12,7 @@ mod notify;
 mod search;
 mod ssdp;
 
-use get_if_addrs;
+use netdev::get_interfaces;
 
 pub use crate::message::listen::Listen;
 pub use crate::message::multicast::Multicast;
@@ -165,8 +165,18 @@ fn is_not_global_v6(addr: std::net::Ipv6Addr) -> bool {
 ///
 /// If any of the `SocketAddr`'s fail to resolve, this function will not return an error.
 fn get_local_addrs() -> io::Result<Vec<SocketAddr>> {
-    let iface_iter = get_if_addrs::get_if_addrs()?.into_iter();
+    let iface_iter = get_interfaces().into_iter();
     Ok(iface_iter
-        .filter_map(|iface| Some(SocketAddr::new(iface.addr.ip(), 0)))
+        // NOTE: this is incomplete. With IPv6 all link-local addresses need to be annotated with
+        // the network interface, i.e. scope identifier, to which the belong. The scope id can be
+        // parsed by std's `IPv6Addr as FromStr` but is just a literal integer `u32`. *Usually*
+        // that can be set as the interface index however this is subject to the platform
+        // implementation and need not generally be the identity mapping.
+        .flat_map(|iface| {
+            let ipv4 = iface.ipv4.into_iter().map(|ip| IpAddr::from(ip.addr()));
+            let ipv6 = iface.ipv6.into_iter().map(|ip| IpAddr::from(ip.addr()));
+
+            ipv4.chain(ipv6).map(|ip| SocketAddr::new(ip, 0))
+        })
         .collect())
 }

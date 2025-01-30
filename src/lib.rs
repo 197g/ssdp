@@ -12,10 +12,7 @@ extern crate hyper;
 #[macro_use]
 extern crate log;
 extern crate time;
-extern crate get_if_addrs;
 extern crate net2;
-#[macro_use]
-extern crate error_chain;
 
 mod error;
 mod field;
@@ -25,7 +22,7 @@ mod receiver;
 pub mod header;
 pub mod message;
 
-pub use crate::error::{SSDPError, SSDPErrorKind, SSDPResultExt, SSDPResult};
+pub use crate::error::{SSDPError, SSDPResult};
 pub use crate::field::FieldMap;
 pub use crate::receiver::{SSDPReceiver, SSDPIter};
 pub use crate::net::IpVersionMode;

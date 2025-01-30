@@ -1,11 +1,6 @@
-use std::fmt::{Display, Formatter, Result};
-
-use hyper::error::{self, Error};
-use hyper::header::{Header, HeaderFormat};
+use headers::{Header, HeaderName, HeaderValue};
 
 use crate::FieldMap;
-
-const ST_HEADER_NAME: &'static str = "ST";
 
 const ST_ALL_VALUE: &'static str = "ssdp:all";
 
@@ -17,40 +12,47 @@ pub enum ST {
 }
 
 impl Header for ST {
-    fn header_name() -> &'static str {
-        ST_HEADER_NAME
+    fn name() -> &'static HeaderName {
+        static NAME: HeaderName = HeaderName::from_static("st");
+        &NAME
     }
 
-    fn parse_header(raw: &[Vec<u8>]) -> error::Result<Self> {
-        if raw.len() != 1 {
-            return Err(Error::Header);
-        }
-
-        if &raw[0][..] == ST_ALL_VALUE.as_bytes() {
-            Ok(ST::All)
-        } else {
-            FieldMap::parse_bytes(&raw[0][..])
-                .map(ST::Target)
-                .ok_or(Error::Header)
-        }
-    }
-}
-
-impl HeaderFormat for ST {
-    fn fmt_header(&self, fmt: &mut Formatter) -> Result {
-        match *self {
-            ST::All => fmt.write_str(ST_ALL_VALUE)?,
-            ST::Target(ref n) => Display::fmt(n, fmt)?,
+    fn decode<'i, I>(values: &mut I) -> Result<Self, headers::Error>
+    where
+        I: Iterator<Item = &'i HeaderValue>,
+    {
+        let Some(value) = values.next() else {
+            return Err(headers::Error::invalid())?;
         };
 
-        Ok(())
+        if values.next().is_some() {
+            return Err(headers::Error::invalid())?;
+        };
+
+        if value == ST_ALL_VALUE.as_bytes() {
+            Ok(ST::All)
+        } else {
+            FieldMap::parse_bytes(value.as_bytes())
+                .map(ST::Target)
+                .ok_or_else(headers::Error::invalid)
+        }
+    }
+
+    fn encode<E>(&self, values: &mut E)
+    where
+        E: Extend<HeaderValue>,
+    {
+        let value = match *self {
+            ST::All => HeaderValue::from_static(ST_ALL_VALUE),
+            ST::Target(ref n) => HeaderValue::from_str(&n.to_string()).unwrap(),
+        };
+
+        values.extend([value]);
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use hyper::header::Header;
-
     use super::ST;
     use crate::FieldMap;
 

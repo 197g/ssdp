@@ -1,9 +1,4 @@
-use std::fmt::{Formatter, Result};
-
-use hyper::error::{self, Error};
-use hyper::header::{HeaderFormat, Header};
-
-const NTS_HEADER_NAME: &'static str = "NTS";
+use headers::{Header, HeaderName, HeaderValue};
 
 const ALIVE_HEADER: &'static str = "ssdp:alive";
 const UPDATE_HEADER: &'static str = "ssdp:update";
@@ -24,43 +19,50 @@ pub enum NTS {
 }
 
 impl Header for NTS {
-    fn header_name() -> &'static str {
-        NTS_HEADER_NAME
+    fn name() -> &'static HeaderName {
+        static NAME: HeaderName = HeaderName::from_static("nts");
+        &NAME
     }
 
-    fn parse_header(raw: &[Vec<u8>]) -> error::Result<Self> {
-        if raw.len() != 1 {
-            return Err(Error::Header);
-        }
-
-        if &raw[0][..] == ALIVE_HEADER.as_bytes() {
-            Ok(NTS::Alive)
-        } else if &raw[0][..] == UPDATE_HEADER.as_bytes() {
-            Ok(NTS::Update)
-        } else if &raw[0][..] == BYEBYE_HEADER.as_bytes() {
-            Ok(NTS::ByeBye)
-        } else {
-            Err(Error::Header)
-        }
-    }
-}
-
-impl HeaderFormat for NTS {
-    fn fmt_header(&self, fmt: &mut Formatter) -> Result {
-        match *self {
-            NTS::Alive => fmt.write_str(ALIVE_HEADER)?,
-            NTS::Update => fmt.write_str(UPDATE_HEADER)?,
-            NTS::ByeBye => fmt.write_str(BYEBYE_HEADER)?,
+    fn decode<'i, I>(values: &mut I) -> Result<Self, headers::Error>
+    where
+        I: Iterator<Item = &'i HeaderValue>,
+    {
+        let Some(value) = values.next() else {
+            return Err(headers::Error::invalid())?;
         };
 
-        Ok(())
+        if values.next().is_some() {
+            return Err(headers::Error::invalid())?;
+        };
+
+        if value.as_bytes() == ALIVE_HEADER.as_bytes() {
+            Ok(NTS::Alive)
+        } else if value.as_bytes() == UPDATE_HEADER.as_bytes() {
+            Ok(NTS::Update)
+        } else if value.as_bytes() == BYEBYE_HEADER.as_bytes() {
+            Ok(NTS::ByeBye)
+        } else {
+            Err(headers::Error::invalid())
+        }
+    }
+
+    fn encode<E>(&self, values: &mut E)
+    where
+        E: Extend<HeaderValue>,
+    {
+        let value = HeaderValue::from_static(match *self {
+            NTS::Alive => ALIVE_HEADER,
+            NTS::Update => UPDATE_HEADER,
+            NTS::ByeBye => BYEBYE_HEADER,
+        });
+
+        values.extend([value]);
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use hyper::header::Header;
-
     use super::NTS;
 
     #[test]

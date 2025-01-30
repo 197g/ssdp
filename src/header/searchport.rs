@@ -1,9 +1,4 @@
-use std::fmt::{Formatter, Result};
-
-use hyper::error::{self, Error};
-use hyper::header::{HeaderFormat, Header};
-
-const SEARCHPORT_HEADER_NAME: &'static str = "SEARCHPORT.UPNP.ORG";
+use headers::{Header, HeaderName, HeaderValue};
 
 pub const SEARCHPORT_MIN_VALUE: u16 = 49152;
 
@@ -15,42 +10,51 @@ pub const SEARCHPORT_MIN_VALUE: u16 = 49152;
 pub struct SearchPort(pub u16);
 
 impl Header for SearchPort {
-    fn header_name() -> &'static str {
-        SEARCHPORT_HEADER_NAME
+    fn name() -> &'static HeaderName {
+        static NAME: HeaderName = HeaderName::from_static("searchport.upnp.org");
+        &NAME
     }
 
-    fn parse_header(raw: &[Vec<u8>]) -> error::Result<Self> {
-        if raw.len() != 1 {
-            return Err(Error::Header);
-        }
+    fn decode<'i, I>(values: &mut I) -> Result<Self, headers::Error>
+    where
+        I: Iterator<Item = &'i HeaderValue>,
+    {
+        let Some(value) = values.next() else {
+            return Err(headers::Error::invalid())?;
+        };
 
-        let cow_str = String::from_utf8_lossy(&raw[0][..]);
+        if values.next().is_some() {
+            return Err(headers::Error::invalid())?;
+        };
+
+        let cow_str = String::from_utf8_lossy(value.as_bytes());
 
         let value = match u16::from_str_radix(&*cow_str, 10) {
             Ok(n) => n,
-            Err(_) => return Err(Error::Header),
+            Err(_) => return Err(headers::Error::invalid()),
         };
 
         if value >= SEARCHPORT_MIN_VALUE {
             Ok(SearchPort(value))
         } else {
-            Err(Error::Header)
+            Err(headers::Error::invalid())
         }
     }
-}
 
-impl HeaderFormat for SearchPort {
-    fn fmt_header(&self, fmt: &mut Formatter) -> Result {
-        fmt.write_fmt(format_args!("{}", self.0))?;
-
-        Ok(())
+    fn encode<E>(&self, values: &mut E)
+    where
+        E: Extend<HeaderValue>,
+    {
+        if let Ok(value) = HeaderValue::from_str(&self.0.to_string()) {
+            values.extend([value]);
+        } else {
+            debug_assert!(false, "Encoding configid header was invalid");
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use hyper::header::Header;
-
     use super::SearchPort;
 
     #[test]

@@ -4,10 +4,9 @@
 //! layer in order to provide a cleaner interface for extending the underlying
 //! HTTP parsing library.
 
-use std::borrow::Cow;
 use std::fmt::Debug;
 
-use hyper::header::{Headers, Header, HeaderFormat};
+use headers::Header;
 
 mod bootid;
 mod configid;
@@ -16,7 +15,7 @@ mod mx;
 mod nt;
 mod nts;
 mod searchport;
-mod securelocation;
+// mod securelocation;
 mod st;
 mod usn;
 
@@ -27,98 +26,41 @@ pub use self::mx::MX;
 pub use self::nt::NT;
 pub use self::nts::NTS;
 pub use self::searchport::SearchPort;
-pub use self::securelocation::SecureLocation;
+// pub use self::securelocation::SecureLocation;
 pub use self::st::ST;
 pub use self::usn::USN;
 
 // Re-exports
-pub use hyper::header::{Location, Server, CacheControl, CacheDirective};
-
-/// Trait for viewing the contents of a header structure.
-pub trait HeaderRef: Debug {
-    /// View a reference to a header field if it exists.
-    fn get<H>(&self) -> Option<&H> where H: Header + HeaderFormat;
-
-    /// View a reference to the raw bytes of a header field if it exists.
-    fn get_raw(&self, name: &str) -> Option<&[Vec<u8>]>;
-}
-
-impl<'a, T: ?Sized> HeaderRef for &'a T
-    where T: HeaderRef
-{
-    fn get<H>(&self) -> Option<&H>
-        where H: Header + HeaderFormat
-    {
-        HeaderRef::get::<H>(*self)
-    }
-
-    fn get_raw(&self, name: &str) -> Option<&[Vec<u8>]> {
-        HeaderRef::get_raw(*self, name)
-    }
-}
-
-impl<'a, T: ?Sized> HeaderRef for &'a mut T
-    where T: HeaderRef
-{
-    fn get<H>(&self) -> Option<&H>
-        where H: Header + HeaderFormat
-    {
-        HeaderRef::get::<H>(*self)
-    }
-
-    fn get_raw(&self, name: &str) -> Option<&[Vec<u8>]> {
-        HeaderRef::get_raw(*self, name)
-    }
-}
-
-impl HeaderRef for Headers {
-    fn get<H>(&self) -> Option<&H>
-        where H: Header + HeaderFormat
-    {
-        Headers::get::<H>(self)
-    }
-
-    fn get_raw(&self, name: &str) -> Option<&[Vec<u8>]> {
-        Headers::get_raw(self, name)
-    }
-}
+pub use headers::{CacheControl, Location, Server};
 
 /// Trait for manipulating the contents of a header structure.
 pub trait HeaderMut: Debug {
     /// Set a header to the given value.
-    fn set<H>(&mut self, value: H) where H: Header + HeaderFormat;
-
-    /// Set a header to the given raw bytes.
-    fn set_raw<K>(&mut self, name: K, value: Vec<Vec<u8>>) where K: Into<Cow<'static, str>> + Debug;
+    fn set<H>(&mut self, value: H)
+    where
+        H: Header;
 }
 
 impl<'a, T: ?Sized> HeaderMut for &'a mut T
-    where T: HeaderMut
+where
+    T: HeaderMut,
 {
     fn set<H>(&mut self, value: H)
-        where H: Header + HeaderFormat
+    where
+        H: Header,
     {
         HeaderMut::set(*self, value)
     }
-
-    fn set_raw<K>(&mut self, name: K, value: Vec<Vec<u8>>)
-        where K: Into<Cow<'static, str>> + Debug
-    {
-        HeaderMut::set_raw(*self, name, value)
-    }
 }
 
-impl HeaderMut for Headers {
+impl HeaderMut for headers::HeaderMap {
     fn set<H>(&mut self, value: H)
-        where H: Header + HeaderFormat
+    where
+        H: Header,
     {
-        Headers::set(self, value)
-    }
-
-    fn set_raw<K>(&mut self, name: K, value: Vec<Vec<u8>>)
-        where K: Into<Cow<'static, str>> + Debug
-    {
-        Headers::set_raw(self, name, value)
+        use headers::HeaderMapExt as _;
+        self.remove(H::name());
+        self.typed_insert(value);
     }
 }
 

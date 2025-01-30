@@ -1,12 +1,7 @@
-use std::fmt::{Formatter, Display, Result};
+use headers::{Header, HeaderName, HeaderValue};
 
-use hyper::error::{self, Error};
-use hyper::header::{HeaderFormat, Header};
-
-use crate::FieldMap;
 use crate::field;
-
-const USN_HEADER_NAME: &'static str = "USN";
+use crate::FieldMap;
 
 /// Separator for multiple key/values in header fields.
 const FIELD_PAIR_SEPARATOR: &'static str = "::";
@@ -24,43 +19,58 @@ impl USN {
 }
 
 impl Header for USN {
-    fn header_name() -> &'static str {
-        USN_HEADER_NAME
+    fn name() -> &'static HeaderName {
+        static NAME: HeaderName = HeaderName::from_static("usn");
+        &NAME
     }
 
-    fn parse_header(raw: &[Vec<u8>]) -> error::Result<Self> {
-        if raw.len() != 1 {
-            return Err(Error::Header);
-        }
+    fn decode<'i, I>(values: &mut I) -> Result<Self, headers::Error>
+    where
+        I: Iterator<Item = &'i HeaderValue>,
+    {
+        let Some(value) = values.next() else {
+            return Err(headers::Error::invalid())?;
+        };
 
-        let (first, second) = match partition_pairs(raw[0][..].iter()) {
+        if values.next().is_some() {
+            return Err(headers::Error::invalid())?;
+        };
+
+        let (first, second) = match partition_pairs(value.as_bytes().iter()) {
             Some((n, Some(u))) => (FieldMap::parse_bytes(&n[..]), FieldMap::parse_bytes(&u[..])),
             Some((n, None)) => (FieldMap::parse_bytes(&n[..]), None),
-            None => return Err(Error::Header),
+            None => return Err(headers::Error::invalid()),
         };
 
         match first {
             Some(n) => Ok(USN(n, second)),
-            None => Err(Error::Header),
+            None => Err(headers::Error::invalid()),
         }
     }
-}
 
-impl HeaderFormat for USN {
-    fn fmt_header(&self, fmt: &mut Formatter) -> Result {
-        Display::fmt(&self.0, fmt)?;
+    fn encode<E>(&self, values: &mut E)
+    where
+        E: Extend<HeaderValue>,
+    {
+        use core::fmt::Write as _;
+        let mut value = self.0.to_string();
 
         if let Some(ref n) = self.1 {
-            fmt.write_fmt(format_args!("{}", FIELD_PAIR_SEPARATOR))?;
-            Display::fmt(n, fmt)?;
+            value.push_str(FIELD_PAIR_SEPARATOR);
+            write!(&mut value, "{}", n).expect("string can not fail IO");
         }
 
-        Ok(())
+        if let Ok(value) = HeaderValue::from_str(&value) {
+            values.extend([value]);
+        } else {
+            debug_assert!(false, "Encoding usn header was invalid");
+        }
     }
 }
 
 fn partition_pairs<'a, I>(header_iter: I) -> Option<(Vec<u8>, Option<Vec<u8>>)>
-    where I: Iterator<Item = &'a u8>
+where
+    I: Iterator<Item = &'a u8>,
 {
     let mut second_partition = false;
     let mut header_iter = header_iter.peekable();
@@ -100,10 +110,8 @@ fn partition_pairs<'a, I>(header_iter: I) -> Option<(Vec<u8>, Option<Vec<u8>>)>
 
 #[cfg(test)]
 mod tests {
-    use hyper::header::Header;
-
     use super::USN;
-    use crate::FieldMap::{UPnP, UUID, URN, Unknown};
+    use crate::FieldMap::{UPnP, Unknown, URN, UUID};
 
     #[test]
     fn positive_double_pair() {

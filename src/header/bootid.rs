@@ -1,53 +1,57 @@
-use std::fmt::{Formatter, Result};
-
-use hyper::error::{self, Error};
-use hyper::header::{HeaderFormat, Header};
-
-const BOOTID_HEADER_NAME: &'static str = "BOOTID.UPNP.ORG";
+use headers::{Header, HeaderName, HeaderValue};
 
 /// Represents a header used to denote the boot instance of a root device.
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub struct BootID(pub u32);
 
 impl Header for BootID {
-    fn header_name() -> &'static str {
-        BOOTID_HEADER_NAME
+    fn name() -> &'static HeaderName {
+        static NAME: HeaderName = HeaderName::from_static("bootid.upnp.org");
+        &NAME
     }
 
-    fn parse_header(raw: &[Vec<u8>]) -> error::Result<Self> {
-        if raw.len() != 1 {
-            return Err(Error::Header);
-        }
+    fn decode<'i, I>(values: &mut I) -> Result<Self, headers::Error>
+    where
+        I: Iterator<Item = &'i HeaderValue>,
+    {
+        let Some(value) = values.next() else {
+            return Err(headers::Error::invalid())?;
+        };
 
-        let cow_str = String::from_utf8_lossy(&raw[0][..]);
+        if values.next().is_some() {
+            return Err(headers::Error::invalid())?;
+        };
+
+        let cow_str = String::from_utf8_lossy(value.as_bytes());
 
         // Value needs to be a 31 bit non-negative integer, so convert to i32
         let value = match i32::from_str_radix(&*cow_str, 10) {
             Ok(n) => n,
-            Err(_) => return Err(Error::Header),
+            Err(_) => return Err(headers::Error::invalid()),
         };
 
         // Check if value is negative, then convert to u32
         if value.is_negative() {
-            Err(Error::Header)
+            Err(headers::Error::invalid())
         } else {
             Ok(BootID(value as u32))
         }
     }
-}
 
-impl HeaderFormat for BootID {
-    fn fmt_header(&self, fmt: &mut Formatter) -> Result {
-        fmt.write_fmt(format_args!("{}", self.0))?;
-
-        Ok(())
+    fn encode<E>(&self, values: &mut E)
+    where
+        E: Extend<HeaderValue>,
+    {
+        if let Ok(value) = HeaderValue::from_str(&format!("{}", self.0)) {
+            values.extend([value]);
+        } else {
+            debug_assert!(false, "Encoding configid header was invalid");
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use hyper::header::Header;
-
     use super::BootID;
 
     #[test]

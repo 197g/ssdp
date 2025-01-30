@@ -2,8 +2,7 @@ use std::io;
 use std::net::{SocketAddr, SocketAddrV4, SocketAddrV6, ToSocketAddrs, UdpSocket};
 use std::str::FromStr;
 
-use hyper::error;
-use hyper::net::NetworkConnector;
+use crate::net::NetworkConnector;
 
 use crate::net;
 use crate::net::sender::UdpSender;
@@ -42,7 +41,7 @@ impl UdpConnector {
 impl NetworkConnector for UdpConnector {
     type Stream = UdpSender;
 
-    fn connect(&self, host: &str, port: u16, _: &str) -> error::Result<<Self as NetworkConnector>::Stream> {
+    fn connect(&self, host: &str, port: u16) -> io::Result<Self::Stream> {
         let udp_sock = self.0.try_clone()?;
         let sock_addr = match self.local_addr()? {
             SocketAddr::V4(_) => SocketAddr::V4(SocketAddrV4::new(

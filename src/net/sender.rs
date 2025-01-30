@@ -1,7 +1,6 @@
 use std::io::{self, ErrorKind, Read, Write};
 use std::net::{UdpSocket, SocketAddr};
-use std::time::Duration;
-use hyper::net::NetworkStream;
+use crate::net::NetworkStream;
 
 /// A type that wraps a `UdpSocket` and a `SocketAddr` and implements the `NetworkStream`
 /// trait.
@@ -30,12 +29,6 @@ impl UdpSender {
 impl NetworkStream for UdpSender {
     fn peer_addr(&mut self) -> io::Result<SocketAddr> {
         Ok(self.dst)
-    }
-    fn set_read_timeout(&self, _dur: Option<Duration>) -> io::Result<()> {
-        Ok(())
-    }
-    fn set_write_timeout(&self, _dur: Option<Duration>) -> io::Result<()> {
-        Ok(())
     }
 }
 

@@ -1,11 +1,6 @@
-use std::fmt::{Formatter, Result};
+use headers::{Header, HeaderName, HeaderValue};
 
-use hyper::error::{self, Error};
-use hyper::header::{HeaderFormat, Header};
-
-use crate::{SSDPResult, SSDPError};
-
-const MX_HEADER_NAME: &'static str = "MX";
+use crate::{SSDPError, SSDPResult};
 
 /// Minimum wait time specified in the `UPnP` 1.0 standard.
 pub const MX_HEADER_MIN: u8 = 1;
@@ -27,7 +22,7 @@ pub struct MX(pub u8);
 impl MX {
     pub fn new(wait_bound: u8) -> SSDPResult<MX> {
         if wait_bound < MX_HEADER_MIN || wait_bound > MX_HEADER_MAX {
-            Err(SSDPError::InvalidHeader(MX_HEADER_NAME, "Supplied Wait Bound Is Out Of Bounds"))
+            Err(SSDPError::InvalidHeader(MX::name().as_str().into()))
         } else {
             Ok(MX(wait_bound))
         }
@@ -35,36 +30,45 @@ impl MX {
 }
 
 impl Header for MX {
-    fn header_name() -> &'static str {
-        MX_HEADER_NAME
+    fn name() -> &'static HeaderName {
+        static NAME: HeaderName = HeaderName::from_static("mx");
+        &NAME
     }
 
-    fn parse_header(raw: &[Vec<u8>]) -> error::Result<Self> {
-        if raw.len() != 1 {
-            return Err(Error::Header);
-        }
+    fn decode<'i, I>(values: &mut I) -> Result<Self, headers::Error>
+    where
+        I: Iterator<Item = &'i HeaderValue>,
+    {
+        let Some(value) = values.next() else {
+            return Err(headers::Error::invalid())?;
+        };
 
-        let cow_string = String::from_utf8_lossy(&raw[0][..]);
+        if values.next().is_some() {
+            return Err(headers::Error::invalid())?;
+        };
+
+        let cow_string = String::from_utf8_lossy(value.as_bytes());
 
         match u8::from_str_radix(&cow_string, 10) {
             Ok(n) if n >= MX_HEADER_MIN && n <= MX_HEADER_MAX => Ok(MX(n)),
-            _ => Err(Error::Header),
+            _ => Err(headers::Error::invalid()),
         }
     }
-}
 
-impl HeaderFormat for MX {
-    fn fmt_header(&self, fmt: &mut Formatter) -> Result {
-        fmt.write_fmt(format_args!("{}", self.0))?;
-
-        Ok(())
+    fn encode<E>(&self, values: &mut E)
+    where
+        E: Extend<HeaderValue>,
+    {
+        if let Ok(value) = HeaderValue::from_str(&format!("{}", self.0)) {
+            values.extend([value]);
+        } else {
+            debug_assert!(false, "Encoding configid header was invalid");
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use hyper::header::Header;
-
     use super::MX;
 
     #[test]

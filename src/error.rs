@@ -1,4 +1,4 @@
-use hyper;
+use std::borrow::Cow;
 use std::io;
 use std::net;
 
@@ -11,9 +11,14 @@ quick_error! {
         /// Message is not valid HTTP.
         ///
         /// Message is supplied as a list of bytes.
-        InvalidHttp(message: Vec<u8>) {
+        InvalidHttp(message: httparse::Error) {
+            from()
             // description("invalid HTTP")
             display("invalid HTTP message: '{:?}'", message)
+        }
+        /// Message is not valid HTTP.
+        PartialHttp {
+            display("partial HTTP message")
         }
         /// Message did not specify HTTP/1.1 as version.
         InvalidHttpVersion { }
@@ -48,9 +53,9 @@ quick_error! {
         /// Header has an invalid value.
         ///
         /// Header name with error message are supplied.
-        InvalidHeader(header: &'static str, msg: &'static str) {
+        InvalidHeader(header: Cow<'static, str>) {
             // description("invalid header")
-            display("invalid header: '{}': {}", header, msg)
+            display("invalid header: '{}'", header)
         }
 
         Io(err: io::Error) {
@@ -61,16 +66,6 @@ quick_error! {
         AddrParseError(err: net::AddrParseError) {
             from()
             display("invalid address: {}", err)
-        }
-
-        Hyper(err: hyper::Error) {
-            from()
-            display("invalid HTTP: {}", err)
-        }
-
-        HyperParseError(err: hyper::error::ParseError) {
-            from()
-            display("invalid HTTP message received: {}", err)
         }
     }
 }

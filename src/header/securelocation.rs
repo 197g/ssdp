@@ -1,7 +1,4 @@
-use std::fmt::{Formatter, Result};
-
-use hyper::error::{self, Error};
-use hyper::header::{Header, HeaderFormat};
+use headers::{Header, HeaderName, HeaderValue};
 
 const SECURELOCATION_HEADER_NAME: &'static str = "SECURELOCATION.UPNP.ORG";
 
@@ -12,27 +9,37 @@ const SECURELOCATION_HEADER_NAME: &'static str = "SECURELOCATION.UPNP.ORG";
 pub struct SecureLocation(pub String);
 
 impl Header for SecureLocation {
-    fn header_name() -> &'static str {
-        SECURELOCATION_HEADER_NAME
+    fn name() -> &'static HeaderName {
+        &HeaderName::from_static(SECURELOCATION_HEADER_NAME)
     }
 
-    fn parse_header(raw: &[Vec<u8>]) -> error::Result<Self> {
-        if raw.len() != 1 || raw[0].is_empty() {
-            return Err(Error::Header);
-        }
+    fn decode<'i, I>(values: &mut I) -> Result<Self, headers::Error>
+    where
+        I: Iterator<Item = &'i HeaderValue>,
+    {
+        let Some(value) = values.next() else {
+            return Err(headers::Error::invalid())?;
+        };
 
-        let owned_bytes = raw[0].clone();
+        if values.next().is_some() {
+            return Err(headers::Error::invalid())?;
+        };
 
-        match String::from_utf8(owned_bytes) {
-            Ok(n) => Ok(SecureLocation(n)),
-            Err(_) => Err(Error::Header),
+        match core::str::from_utf8(value) {
+            Ok(n) => Ok(SecureLocation(n.to_string())),
+            Err(_) => Err(headers::Error::invalid()),
         }
     }
-}
 
-impl HeaderFormat for SecureLocation {
-    fn fmt_header(&self, fmt: &mut Formatter) -> Result {
-        fmt.write_str(&self.0)?;
+    fn encode<E>(&self, values: &mut E)
+    where
+        E: Extend<HeaderValue>,
+    {
+        if let Ok(value) = HeaderValue::from_str(&self.0) {
+            values.extend([value]);
+        } else {
+            debug_assert!(false, "Encoding configid header was invalid");
+        }
 
         Ok(())
     }

@@ -15,12 +15,11 @@ readme = "README.md"
 
 [dependencies]
 log = "0.4"
+headers = "0.4"
+httparse = "1.10"
 net2 = "0.2.23"
 netdev = "0.32.0"
+url = "2"
 quick-error = "2"
-
-[dependencies.hyper]
-default-features = false
-version = "0.10.4"
 
 [features]

@@ -12,7 +12,9 @@ use crate::net::packet::PacketReceiver;
 
 /// Trait for constructing an object from some serialized SSDP message.
 pub trait FromRawSSDP: Sized {
-    fn raw_ssdp(bytes: &[u8]) -> SSDPResult<Self>;
+    /// Construct from a request, i.e. an advertise packet sent to the multicast address or a
+    /// search sent that or a search to us directly as a unicast or a result of a search.
+    fn from_packet(bytes: &[u8]) -> SSDPResult<Self>;
 }
 
 /// Iterator for an `SSDPReceiver`.
@@ -144,7 +146,7 @@ fn receive_packets<T>(recv: PacketReceiver, send: Sender<(T, SocketAddr)>)
         trace!("Received packet with {} bytes", msg_bytes.len());
 
         // Unwrap Will Cause A Panic If Receiver Hung Up Which Is Desired
-        match T::raw_ssdp(&msg_bytes[..]) {
+        match T::from_packet(&msg_bytes[..]) {
             Ok(n) => send.send((n, addr)).unwrap(),
             Err(_) => {
                 continue;

@@ -1,10 +1,9 @@
-use std::borrow::Cow;
 use std::fmt::Debug;
 
-use hyper::header::{Header, HeaderFormat};
+use headers::Header;
 
 use crate::error::{SSDPError::InvalidMethod, SSDPResult};
-use crate::header::{HeaderMut, HeaderRef};
+use crate::header::HeaderMut;
 use crate::message::multicast::{self, Multicast};
 use crate::message::ssdp::SSDPMessage;
 use crate::message::{Config, Listen, MessageType};
@@ -41,8 +40,8 @@ impl Default for NotifyMessage {
 }
 
 impl FromRawSSDP for NotifyMessage {
-    fn raw_ssdp(bytes: &[u8]) -> SSDPResult<NotifyMessage> {
-        let message = SSDPMessage::raw_ssdp(bytes)?;
+    fn from_packet(bytes: &[u8]) -> SSDPResult<NotifyMessage> {
+        let message = SSDPMessage::from_packet(bytes)?;
 
         if message.message_type() != MessageType::Notify {
             Err(InvalidMethod("SSDP Message Received Is Not A NotifyMessage".into()))
@@ -52,32 +51,12 @@ impl FromRawSSDP for NotifyMessage {
     }
 }
 
-impl HeaderRef for NotifyMessage {
-    fn get<H>(&self) -> Option<&H>
-    where
-        H: Header + HeaderFormat,
-    {
-        self.message.get::<H>()
-    }
-
-    fn get_raw(&self, name: &str) -> Option<&[Vec<u8>]> {
-        self.message.get_raw(name)
-    }
-}
-
 impl HeaderMut for NotifyMessage {
     fn set<H>(&mut self, value: H)
     where
-        H: Header + HeaderFormat,
+        H: Header,
     {
         self.message.set(value)
-    }
-
-    fn set_raw<K>(&mut self, name: K, value: Vec<Vec<u8>>)
-    where
-        K: Into<Cow<'static, str>> + Debug,
-    {
-        self.message.set_raw(name, value)
     }
 }
 
@@ -97,7 +76,7 @@ mod tests {
     fn positive_notify_message_type() {
         let raw_message = "NOTIFY * HTTP/1.1\r\nHOST: 192.168.1.1\r\n\r\n";
 
-        NotifyMessage::raw_ssdp(raw_message.as_bytes()).unwrap();
+        NotifyMessage::from_packet(raw_message.as_bytes()).unwrap();
     }
 
     #[test]
@@ -105,7 +84,7 @@ mod tests {
     fn negative_search_message_type() {
         let raw_message = "M-SEARCH * HTTP/1.1\r\nHOST: 192.168.1.1\r\n\r\n";
 
-        NotifyMessage::raw_ssdp(raw_message.as_bytes()).unwrap();
+        NotifyMessage::from_packet(raw_message.as_bytes()).unwrap();
     }
 
     #[test]
@@ -113,6 +92,6 @@ mod tests {
     fn negative_response_message_type() {
         let raw_message = "HTTP/1.1 200 OK\r\n\r\n";
 
-        NotifyMessage::raw_ssdp(raw_message.as_bytes()).unwrap();
+        NotifyMessage::from_packet(raw_message.as_bytes()).unwrap();
     }
 }

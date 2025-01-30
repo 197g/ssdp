@@ -4,8 +4,8 @@
 //! data to UDP sockets as a stream, and read data from UDP sockets as packets.
 
 use std::io::{self, ErrorKind};
+use std::net::{IpAddr, SocketAddr};
 use std::net::{ToSocketAddrs, UdpSocket};
-use std::net::{SocketAddr, IpAddr};
 
 #[cfg(not(windows))]
 use net2::unix::UnixUdpBuilderExt;
@@ -75,10 +75,10 @@ pub fn join_multicast(sock: &UdpSocket, iface: &SocketAddr, mcast_addr: &IpAddr)
     match (iface, mcast_addr) {
         (&SocketAddr::V4(ref i), &IpAddr::V4(ref m)) => sock.join_multicast_v4(m, i.ip()),
         (&SocketAddr::V6(ref i), &IpAddr::V6(ref m)) => sock.join_multicast_v6(m, i.scope_id()),
-        _ => {
-            Err(io::Error::new(ErrorKind::InvalidInput,
-                               "Multicast And Interface Addresses Are Not The Same Version"))
-        }
+        _ => Err(io::Error::new(
+            ErrorKind::InvalidInput,
+            "Multicast And Interface Addresses Are Not The Same Version",
+        )),
     }
 }
 
@@ -88,10 +88,34 @@ pub fn leave_multicast(sock: &UdpSocket, iface_addr: &SocketAddr, mcast_addr: &S
     match (iface_addr, mcast_addr) {
         (&SocketAddr::V4(ref i), &SocketAddr::V4(ref m)) => sock.leave_multicast_v4(m.ip(), i.ip()),
         (&SocketAddr::V6(ref i), &SocketAddr::V6(ref m)) => sock.leave_multicast_v6(m.ip(), i.scope_id()),
-        _ => {
-            Err(io::Error::new(ErrorKind::InvalidInput,
-                               "Multicast And Interface Addresses Are Not The Same Version"))
-        }
+        _ => Err(io::Error::new(
+            ErrorKind::InvalidInput,
+            "Multicast And Interface Addresses Are Not The Same Version",
+        )),
+    }
+}
+
+/// A synchronous stream abstraction.
+///
+/// Interface taken from: `hyper:0.10`.
+pub trait NetworkStream: io::Read + io::Write + Send {
+    fn peer_addr(&mut self) -> Result<SocketAddr, io::Error>;
+}
+
+/// A connector creates a NetworkStream.
+///
+/// Interface taken from: `hyper:0.10`.
+pub trait NetworkConnector {
+    /// Type of `Stream` to create
+    type Stream: Into<Box<dyn NetworkStream + Send>>;
+
+    /// Connect to a remote address.
+    fn connect(&self, host: &str, port: u16) -> io::Result<Self::Stream>;
+}
+
+impl<T: NetworkStream + 'static> From<T> for Box<dyn NetworkStream + Send> {
+    fn from(value: T) -> Self {
+        Box::new(value)
     }
 }
 

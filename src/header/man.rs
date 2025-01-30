@@ -1,9 +1,5 @@
-use std::fmt::{Formatter, Result};
+use headers::{Header, HeaderName, HeaderValue};
 
-use hyper::error::{self, Error};
-use hyper::header::{HeaderFormat, Header};
-
-const MAN_HEADER_NAME: &'static str = "MAN";
 const MAN_HEADER_VALUE: &'static str = "\"ssdp:discover\"";
 
 /// Represents a header used to specify HTTP extension.
@@ -11,35 +7,40 @@ const MAN_HEADER_VALUE: &'static str = "\"ssdp:discover\"";
 pub struct Man;
 
 impl Header for Man {
-    fn header_name() -> &'static str {
-        MAN_HEADER_NAME
+    fn name() -> &'static HeaderName {
+        static NAME: HeaderName = HeaderName::from_static("man");
+        &NAME
     }
 
-    fn parse_header(raw: &[Vec<u8>]) -> error::Result<Self> {
-        if raw.len() != 1 {
-            return Err(Error::Header);
-        }
+    fn decode<'i, I>(values: &mut I) -> Result<Self, headers::Error>
+    where
+        I: Iterator<Item = &'i HeaderValue>,
+    {
+        let Some(value) = values.next() else {
+            return Err(headers::Error::invalid())?;
+        };
+
+        if values.next().is_some() {
+            return Err(headers::Error::invalid())?;
+        };
 
         let man_bytes = MAN_HEADER_VALUE.as_bytes();
-        match &raw[0][..] {
+        match value {
             n if n == man_bytes => Ok(Man),
-            _ => Err(Error::Header),
+            _ => Err(headers::Error::invalid()),
         }
     }
-}
 
-impl HeaderFormat for Man {
-    fn fmt_header(&self, fmt: &mut Formatter) -> Result {
-        fmt.write_str(MAN_HEADER_VALUE)?;
-
-        Ok(())
+    fn encode<E>(&self, values: &mut E)
+    where
+        E: Extend<HeaderValue>,
+    {
+        values.extend([HeaderValue::from_static(MAN_HEADER_VALUE)]);
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use hyper::header::Header;
-
     use super::Man;
 
     #[test]

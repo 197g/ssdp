@@ -1,11 +1,6 @@
-use std::fmt::{Formatter, Display, Result};
-
-use hyper::error::{self, Error};
-use hyper::header::{HeaderFormat, Header};
+use headers::{Header, HeaderName, HeaderValue};
 
 use crate::FieldMap;
-
-const NT_HEADER_NAME: &'static str = "NT";
 
 /// Represents a header used to specify a notification type.
 ///
@@ -20,36 +15,45 @@ impl NT {
 }
 
 impl Header for NT {
-    fn header_name() -> &'static str {
-        NT_HEADER_NAME
+    fn name() -> &'static HeaderName {
+        static NAME: HeaderName = HeaderName::from_static("nt");
+        &NAME
     }
 
-    fn parse_header(raw: &[Vec<u8>]) -> error::Result<Self> {
-        if raw.len() != 1 {
-            return Err(Error::Header);
-        }
+    fn decode<'i, I>(values: &mut I) -> Result<Self, headers::Error>
+    where
+        I: Iterator<Item = &'i HeaderValue>,
+    {
+        let Some(value) = values.next() else {
+            return Err(headers::Error::invalid())?;
+        };
 
-        match FieldMap::parse_bytes(&raw[0][..]) {
+        if values.next().is_some() {
+            return Err(headers::Error::invalid())?;
+        };
+
+        match FieldMap::parse_bytes(value.as_bytes()) {
             Some(n) => Ok(NT(n)),
-            None => Err(Error::Header),
+            None => Err(headers::Error::invalid()),
         }
     }
-}
 
-impl HeaderFormat for NT {
-    fn fmt_header(&self, fmt: &mut Formatter) -> Result {
-        Display::fmt(&self.0, fmt)?;
-
-        Ok(())
+    fn encode<E>(&self, values: &mut E)
+    where
+        E: Extend<HeaderValue>,
+    {
+        if let Ok(value) = HeaderValue::from_str(&self.0.to_string()) {
+            values.extend([value]);
+        } else {
+            debug_assert!(false, "Encoding configid header was invalid");
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use hyper::header::Header;
-
     use super::NT;
-    use crate::FieldMap::{UPnP, UUID, URN, Unknown};
+    use crate::FieldMap::{UPnP, Unknown, URN, UUID};
 
     #[test]
     fn positive_uuid() {
@@ -100,7 +104,10 @@ mod tests {
         let mut original_iter = header.chars();
         let mut result_iter = k.chars().chain(sep_iter).chain(v.chars());
 
-        assert!(original_iter.by_ref().zip(result_iter.by_ref()).all(|(a, b)| a == b));
+        assert!(original_iter
+            .by_ref()
+            .zip(result_iter.by_ref())
+            .all(|(a, b)| a == b));
         assert!(result_iter.next().is_none() && original_iter.next().is_none());
     }
 
@@ -117,15 +124,18 @@ mod tests {
         let mut original_iter = header.chars();
         let mut result_iter = k.chars().chain(sep_iter).chain(v.chars());
 
-        assert!(original_iter.by_ref().zip(result_iter.by_ref()).all(|(a, b)| a == b));
+        assert!(original_iter
+            .by_ref()
+            .zip(result_iter.by_ref())
+            .all(|(a, b)| a == b));
         assert!(result_iter.next().is_none() && original_iter.next().is_none());
     }
 
     #[test]
     fn positive_leading_double_colon() {
         let leading_double_colon_header = &["uuid::a984bc8c-aaf0-5dff-b980-00d098bda247"
-                                                .to_string()
-                                                .into_bytes()];
+            .to_string()
+            .into_bytes()];
 
         let result = match NT::parse_header(leading_double_colon_header).unwrap() {
             NT(UUID(n)) => n,

@@ -32,7 +32,7 @@ impl Header for SecureLocation {
 
 impl HeaderFormat for SecureLocation {
     fn fmt_header(&self, fmt: &mut Formatter) -> Result {
-        try!(fmt.write_str(&self.0));
+        r#try!(fmt.write_str(&self.0));
 
         Ok(())
     }

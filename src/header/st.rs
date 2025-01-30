@@ -3,7 +3,7 @@ use std::fmt::{Formatter, Display, Result};
 use hyper::error::{self, Error};
 use hyper::header::{HeaderFormat, Header};
 
-use FieldMap;
+use crate::FieldMap;
 
 const ST_HEADER_NAME: &'static str = "ST";
 
@@ -37,8 +37,8 @@ impl Header for ST {
 impl HeaderFormat for ST {
     fn fmt_header(&self, fmt: &mut Formatter) -> Result {
         match *self {
-            ST::All => try!(fmt.write_str(ST_ALL_VALUE)),
-            ST::Target(ref n) => try!(Display::fmt(n, fmt)),
+            ST::All => r#try!(fmt.write_str(ST_ALL_VALUE)),
+            ST::Target(ref n) => r#try!(Display::fmt(n, fmt)),
         };
 
         Ok(())
@@ -49,7 +49,7 @@ impl HeaderFormat for ST {
 mod tests {
     use hyper::header::Header;
 
-    use FieldMap;
+    use crate::FieldMap;
     use super::ST;
 
     #[test]

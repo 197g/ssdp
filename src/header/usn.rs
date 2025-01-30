@@ -3,8 +3,8 @@ use std::fmt::{Formatter, Display, Result};
 use hyper::error::{self, Error};
 use hyper::header::{HeaderFormat, Header};
 
-use FieldMap;
-use field;
+use crate::FieldMap;
+use crate::field;
 
 const USN_HEADER_NAME: &'static str = "USN";
 
@@ -48,11 +48,11 @@ impl Header for USN {
 
 impl HeaderFormat for USN {
     fn fmt_header(&self, fmt: &mut Formatter) -> Result {
-        try!(Display::fmt(&self.0, fmt));
+        r#try!(Display::fmt(&self.0, fmt));
 
         if let Some(ref n) = self.1 {
-            try!(fmt.write_fmt(format_args!("{}", FIELD_PAIR_SEPARATOR)));
-            try!(Display::fmt(n, fmt));
+            r#try!(fmt.write_fmt(format_args!("{}", FIELD_PAIR_SEPARATOR)));
+            r#try!(Display::fmt(n, fmt));
         }
 
         Ok(())
@@ -103,7 +103,7 @@ mod tests {
     use hyper::header::Header;
 
     use super::USN;
-    use FieldMap::{UPnP, UUID, URN, Unknown};
+    use crate::FieldMap::{UPnP, UUID, URN, Unknown};
 
     #[test]
     fn positive_double_pair() {

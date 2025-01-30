@@ -6,13 +6,13 @@ use std::io;
 
 use hyper::header::{Header, HeaderFormat};
 
-use error::SSDPResult;
-use header::{HeaderRef, HeaderMut, MX};
-use message::{self, MessageType, Listen, Config};
-use message::ssdp::SSDPMessage;
-use message::multicast::{self, Multicast};
-use receiver::{SSDPReceiver, FromRawSSDP};
-use net;
+use crate::error::SSDPResult;
+use crate::header::{HeaderRef, HeaderMut, MX};
+use crate::message::{self, MessageType, Listen, Config};
+use crate::message::ssdp::SSDPMessage;
+use crate::message::multicast::{self, Multicast};
+use crate::receiver::{SSDPReceiver, FromRawSSDP};
+use crate::net;
 
 
 /// Overhead to add to device response times to account for transport time.
@@ -39,12 +39,12 @@ impl SearchRequest {
     /// interfaces. This assumes that the network interfaces are operating
     /// on either different subnets or different ip address ranges.
     pub fn unicast<A: ToSocketAddrs>(&mut self, dst_addr: A) -> SSDPResult<SSDPReceiver<SearchResponse>> {
-        let mode = try!(net::IpVersionMode::from_addr(&dst_addr));
-        let mut connectors = try!(message::all_local_connectors(None, &mode));
+        let mode = r#try!(net::IpVersionMode::from_addr(&dst_addr));
+        let mut connectors = r#try!(message::all_local_connectors(None, &mode));
 
         // Send On All Connectors
         for connector in &mut connectors {
-            try!(self.message.send(connector, &dst_addr));
+            r#try!(self.message.send(connector, &dst_addr));
         }
 
         let mut raw_connectors = Vec::with_capacity(connectors.len());
@@ -52,7 +52,7 @@ impl SearchRequest {
 
         let opt_timeout = opt_unicast_timeout(self.get::<MX>());
 
-        Ok(try!(SSDPReceiver::new(raw_connectors, opt_timeout)))
+        Ok(r#try!(SSDPReceiver::new(raw_connectors, opt_timeout)))
     }
 }
 
@@ -62,11 +62,11 @@ impl Multicast for SearchRequest {
     fn multicast_with_config(&self, config: &Config) -> SSDPResult<Self::Item> {
         let connectors = multicast::send(&self.message, config)?;
 
-        let mcast_timeout = try!(multicast_timeout(self.get::<MX>()));
+        let mcast_timeout = r#try!(multicast_timeout(self.get::<MX>()));
         let mut raw_connectors = Vec::with_capacity(connectors.len());
         raw_connectors.extend(connectors.into_iter().map(|conn| conn.deconstruct()));
 
-        Ok(try!(SSDPReceiver::new(raw_connectors, Some(mcast_timeout))))
+        Ok(r#try!(SSDPReceiver::new(raw_connectors, Some(mcast_timeout))))
     }
 }
 
@@ -80,7 +80,7 @@ impl Default for SearchRequest {
 fn multicast_timeout(mx: Option<&MX>) -> SSDPResult<Duration> {
     match mx {
         Some(&MX(n)) => Ok(Duration::new((n + NETWORK_TIMEOUT_OVERHEAD) as u64, 0)),
-        None => try!(Err("Multicast Searches Require An MX Header")),
+        None => r#try!(Err("Multicast Searches Require An MX Header")),
     }
 }
 
@@ -94,10 +94,10 @@ fn opt_unicast_timeout(mx: Option<&MX>) -> Option<Duration> {
 
 impl FromRawSSDP for SearchRequest {
     fn raw_ssdp(bytes: &[u8]) -> SSDPResult<SearchRequest> {
-        let message = try!(SSDPMessage::raw_ssdp(bytes));
+        let message = r#try!(SSDPMessage::raw_ssdp(bytes));
 
         if message.message_type() != MessageType::Search {
-            try!(Err("SSDP Message Received Is Not A SearchRequest"))
+            r#try!(Err("SSDP Message Received Is Not A SearchRequest"))
         } else {
             Ok(SearchRequest { message: message })
         }
@@ -148,8 +148,8 @@ impl SearchResponse {
     /// interfaces. This assumes that the network interfaces are operating
     /// on either different subnets or different ip address ranges.
     pub fn unicast<A: ToSocketAddrs>(&mut self, dst_addr: A) -> SSDPResult<()> {
-        let mode = try!(net::IpVersionMode::from_addr(&dst_addr));
-        let mut connectors = try!(message::all_local_connectors(None, &mode));
+        let mode = r#try!(net::IpVersionMode::from_addr(&dst_addr));
+        let mut connectors = r#try!(message::all_local_connectors(None, &mode));
 
         let mut success_count = 0;
         let mut error_count = 0;
@@ -163,7 +163,7 @@ impl SearchResponse {
         }
 
         if success_count == 0 && error_count > 0 {
-            try!(Err(io::Error::last_os_error()));
+            r#try!(Err(io::Error::last_os_error()));
         }
 
         Ok(())
@@ -185,10 +185,10 @@ impl Listen for SearchListener {
 
 impl FromRawSSDP for SearchResponse {
     fn raw_ssdp(bytes: &[u8]) -> SSDPResult<SearchResponse> {
-        let message = try!(SSDPMessage::raw_ssdp(bytes));
+        let message = r#try!(SSDPMessage::raw_ssdp(bytes));
 
         if message.message_type() != MessageType::Response {
-            try!(Err("SSDP Message Received Is Not A SearchResponse"))
+            r#try!(Err("SSDP Message Received Is Not A SearchResponse"))
         } else {
             Ok(SearchResponse { message: message })
         }
@@ -223,7 +223,7 @@ impl HeaderMut for SearchResponse {
 
 #[cfg(test)]
 mod tests {
-    use header::MX;
+    use crate::header::MX;
 
     #[test]
     fn positive_multicast_timeout() {

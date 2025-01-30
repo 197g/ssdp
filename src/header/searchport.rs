@@ -41,7 +41,7 @@ impl Header for SearchPort {
 
 impl HeaderFormat for SearchPort {
     fn fmt_header(&self, fmt: &mut Formatter) -> Result {
-        try!(fmt.write_fmt(format_args!("{}", self.0)));
+        r#try!(fmt.write_fmt(format_args!("{}", self.0)));
 
         Ok(())
     }

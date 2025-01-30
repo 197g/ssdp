@@ -3,12 +3,12 @@ use std::fmt::Debug;
 
 use hyper::header::{Header, HeaderFormat};
 
-use error::SSDPResult;
-use header::{HeaderRef, HeaderMut};
-use message::{MessageType, Listen, Config};
-use message::ssdp::SSDPMessage;
-use message::multicast::{self, Multicast};
-use receiver::FromRawSSDP;
+use crate::error::SSDPResult;
+use crate::header::{HeaderRef, HeaderMut};
+use crate::message::{MessageType, Listen, Config};
+use crate::message::ssdp::SSDPMessage;
+use crate::message::multicast::{self, Multicast};
+use crate::receiver::FromRawSSDP;
 
 
 /// Notify message that can be sent via multicast to devices on the network.
@@ -41,10 +41,10 @@ impl Default for NotifyMessage {
 
 impl FromRawSSDP for NotifyMessage {
     fn raw_ssdp(bytes: &[u8]) -> SSDPResult<NotifyMessage> {
-        let message = try!(SSDPMessage::raw_ssdp(bytes));
+        let message = r#try!(SSDPMessage::raw_ssdp(bytes));
 
         if message.message_type() != MessageType::Notify {
-            try!(Err("SSDP Message Received Is Not A NotifyMessage"))
+            r#try!(Err("SSDP Message Received Is Not A NotifyMessage"))
         } else {
             Ok(NotifyMessage { message: message })
         }
@@ -87,7 +87,7 @@ impl Listen for NotifyListener {
 #[cfg(test)]
 mod tests {
     use super::NotifyMessage;
-    use receiver::FromRawSSDP;
+    use crate::receiver::FromRawSSDP;
 
     #[test]
     fn positive_notify_message_type() {

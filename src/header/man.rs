@@ -30,7 +30,7 @@ impl Header for Man {
 
 impl HeaderFormat for Man {
     fn fmt_header(&self, fmt: &mut Formatter) -> Result {
-        try!(fmt.write_str(MAN_HEADER_VALUE));
+        r#try!(fmt.write_str(MAN_HEADER_VALUE));
 
         Ok(())
     }

@@ -93,24 +93,24 @@ impl Display for FieldMap {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         let value = match *self {
             FieldMap::UPnP(ref v) => {
-                try!(f.write_str(UPNP_PREFIX));
+                r#try!(f.write_str(UPNP_PREFIX));
                 v
             }
             FieldMap::UUID(ref v) => {
-                try!(f.write_str(UUID_PREFIX));
+                r#try!(f.write_str(UUID_PREFIX));
                 v
             }
             FieldMap::URN(ref v) => {
-                try!(f.write_str(URN_PREFIX));
+                r#try!(f.write_str(URN_PREFIX));
                 v
             }
             FieldMap::Unknown(ref k, ref v) => {
-                try!(Display::fmt(k, f));
+                r#try!(Display::fmt(k, f));
                 v
             }
         };
-        try!(f.write_fmt(format_args!("{}", PAIR_SEPARATOR)));
-        try!(Display::fmt(value, f));
+        r#try!(f.write_fmt(format_args!("{}", PAIR_SEPARATOR)));
+        r#try!(Display::fmt(value, f));
         Ok(())
     }
 }

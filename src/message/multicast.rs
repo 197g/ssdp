@@ -1,10 +1,10 @@
 use std::net::{SocketAddr, SocketAddrV6};
 use std::str::FromStr;
 
-use error::SSDPResult;
-use net::connector::UdpConnector;
-use message::{self, Config};
-use message::ssdp::SSDPMessage;
+use crate::error::SSDPResult;
+use crate::net::connector::UdpConnector;
+use crate::message::{self, Config};
+use crate::message::ssdp::SSDPMessage;
 
 
 pub trait Multicast {
@@ -18,20 +18,20 @@ pub trait Multicast {
 }
 
 pub fn send(message: &SSDPMessage, config: &Config) -> SSDPResult<Vec<UdpConnector>> {
-    let mut connectors = try!(message::all_local_connectors(Some(config.ttl), &config.mode));
+    let mut connectors = r#try!(message::all_local_connectors(Some(config.ttl), &config.mode));
 
     for conn in &mut connectors {
-        match try!(conn.local_addr()) {
+        match r#try!(conn.local_addr()) {
             SocketAddr::V4(n) => {
                 let mcast_addr = (config.ipv4_addr.as_str(), config.port);
                 debug!("Sending ipv4 multicast through {} to {:?}", n, mcast_addr);
-                try!(message.send(conn, &mcast_addr));
+                r#try!(message.send(conn, &mcast_addr));
             }
             SocketAddr::V6(n) => {
                 debug!("Sending Ipv6 multicast through {} to {}:{}", n, config.ipv6_addr, config.port);
                 //try!(message.send(conn, &mcast_addr));
-                try!(message.send(conn,
-                                  &SocketAddrV6::new(try!(FromStr::from_str(config.ipv6_addr.as_str())),
+                r#try!(message.send(conn,
+                                  &SocketAddrV6::new(r#try!(FromStr::from_str(config.ipv6_addr.as_str())),
                                                      config.port,
                                                      n.flowinfo(),
                                                      n.scope_id())))

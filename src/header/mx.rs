@@ -3,7 +3,7 @@ use std::fmt::{Formatter, Result};
 use hyper::error::{self, Error};
 use hyper::header::{HeaderFormat, Header};
 
-use {SSDPResult, SSDPErrorKind};
+use crate::{SSDPResult, SSDPErrorKind};
 
 const MX_HEADER_NAME: &'static str = "MX";
 
@@ -55,7 +55,7 @@ impl Header for MX {
 
 impl HeaderFormat for MX {
     fn fmt_header(&self, fmt: &mut Formatter) -> Result {
-        try!(fmt.write_fmt(format_args!("{}", self.0)));
+        r#try!(fmt.write_fmt(format_args!("{}", self.0)));
 
         Ok(())
     }

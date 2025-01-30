@@ -7,8 +7,8 @@ use std::sync::mpsc::{self, Receiver, Sender, TryRecvError, RecvError, Iter};
 use std::net::{UdpSocket, SocketAddr};
 use std::time::Duration;
 
-use SSDPResult;
-use net::packet::PacketReceiver;
+use crate::SSDPResult;
+use crate::net::packet::PacketReceiver;
 
 /// Trait for constructing an object from some serialized SSDP message.
 pub trait FromRawSSDP: Sized {
@@ -53,7 +53,7 @@ impl<T> SSDPReceiver<T>
 
         // Ensure `receive_packets` times out in the event the timeout packet is not received
         for sock in socks.iter() {
-            try!(sock.set_read_timeout(time));
+            r#try!(sock.set_read_timeout(time));
         }
 
         // Spawn Receiver Threads

@@ -3,7 +3,7 @@ use std::fmt::{Formatter, Display, Result};
 use hyper::error::{self, Error};
 use hyper::header::{HeaderFormat, Header};
 
-use FieldMap;
+use crate::FieldMap;
 
 const NT_HEADER_NAME: &'static str = "NT";
 
@@ -38,7 +38,7 @@ impl Header for NT {
 
 impl HeaderFormat for NT {
     fn fmt_header(&self, fmt: &mut Formatter) -> Result {
-        try!(Display::fmt(&self.0, fmt));
+        r#try!(Display::fmt(&self.0, fmt));
 
         Ok(())
     }
@@ -49,7 +49,7 @@ mod tests {
     use hyper::header::Header;
 
     use super::NT;
-    use FieldMap::{UPnP, UUID, URN, Unknown};
+    use crate::FieldMap::{UPnP, UUID, URN, Unknown};
 
     #[test]
     fn positive_uuid() {

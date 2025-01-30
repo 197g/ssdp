@@ -16,11 +16,11 @@ use hyper::status::StatusCode;
 use hyper::uri::RequestUri;
 use hyper::version::HttpVersion;
 
-use {SSDPResult, SSDPErrorKind};
-use header::{HeaderRef, HeaderMut};
-use message::MessageType;
-use net;
-use receiver::FromRawSSDP;
+use crate::{SSDPResult, SSDPErrorKind};
+use crate::header::{HeaderRef, HeaderMut};
+use crate::message::MessageType;
+use crate::net;
+use crate::receiver::FromRawSSDP;
 
 
 /// Only Valid `SearchResponse` Code
@@ -61,7 +61,7 @@ impl SSDPMessage {
         where C: NetworkConnector<Stream = S>,
               S: Into<Box<NetworkStream + Send>>
     {
-        let dst_sock_addr = try!(net::addr_from_trait(dst_addr));
+        let dst_sock_addr = r#try!(net::addr_from_trait(dst_addr));
         match self.method {
             MessageType::Notify => {
                 trace!("Notify to: {:?}", dst_sock_addr);
@@ -77,7 +77,7 @@ impl SSDPMessage {
                 let dst_ip_string = dst_sock_addr.ip().to_string();
                 let dst_port = dst_sock_addr.port();
 
-                let net_stream = try!(connector.connect(&dst_ip_string[..], dst_port, "")).into();
+                let net_stream = r#try!(connector.connect(&dst_ip_string[..], dst_port, "")).into();
 
                 send_response(&self.headers, net_stream)
             }
@@ -96,10 +96,10 @@ fn send_request<C, S>(method: &str,
           S: Into<Box<NetworkStream + Send>>
 {
     trace!("Trying to parse url...");
-    let url = try!(url_from_addr(dst_addr));
+    let url = r#try!(url_from_addr(dst_addr));
     trace!("Url: {}", url);
 
-    let mut request = try!(Request::with_connector(Method::Extension(method.to_owned()), url, connector));
+    let mut request = r#try!(Request::with_connector(Method::Extension(method.to_owned()), url, connector));
 
     trace!("Copying headers...");
     copy_headers(headers, request.headers_mut());
@@ -110,7 +110,7 @@ fn send_request<C, S>(method: &str,
     // Hyper Does Not Block For A Response Since We Are Handling That Ourselves.
 
     trace!("actual .send ...");
-    try!(request.start()).send();
+    r#try!(request.start()).send();
 
     Ok(())
 }
@@ -128,7 +128,7 @@ fn send_response<W>(headers: &Headers, mut dst_writer: W) -> SSDPResult<()>
     *response.status_mut() = StatusCode::Ok;
 
     // Have to make sure response is destroyed here for lifetime issues with temp_headers
-    try!(try!(response.start()).end());
+    r#try!(r#try!(response.start()).end());
 
     Ok(())
 }
@@ -139,7 +139,7 @@ fn url_from_addr(addr: SocketAddr) -> SSDPResult<Url> {
         .chain(addr.to_string()[..].chars())
         .collect::<String>();
 
-    Ok(try!(Url::parse(&str_url[..])))
+    Ok(r#try!(Url::parse(&str_url[..])))
 }
 
 /// Copy the headers from the source header to the destination header.
@@ -220,8 +220,8 @@ fn log_message_result(result: &SSDPResult<SSDPMessage>, message: &[u8]) {
 fn message_from_request(parts: Incoming<(Method, RequestUri)>) -> SSDPResult<SSDPMessage> {
     let headers = parts.headers;
 
-    try!(validate_http_version(parts.version));
-    try!(validate_http_host(&headers));
+    r#try!(validate_http_version(parts.version));
+    r#try!(validate_http_host(&headers));
 
     match parts.subject {
         (Method::Extension(n), RequestUri::Star) => {
@@ -253,8 +253,8 @@ fn message_from_response(parts: Incoming<RawStatus>) -> SSDPResult<SSDPMessage> 
     let RawStatus(status_code, _) = parts.subject;
     let headers = parts.headers;
 
-    try!(validate_http_version(parts.version));
-    try!(validate_response_code(status_code));
+    r#try!(validate_http_version(parts.version));
+    r#try!(validate_response_code(status_code));
 
     Ok(SSDPMessage {
         method: MessageType::Response,
@@ -381,7 +381,7 @@ mod tests {
 
         use super::super::mocks::MockConnector;
         use super::super::SSDPMessage;
-        use message::MessageType;
+        use crate::message::MessageType;
 
         fn join_buffers(recv_list: &[Receiver<Vec<u8>>]) -> Vec<u8> {
             let mut buffer = Vec::new();
@@ -446,8 +446,8 @@ mod tests {
 
     mod parse {
         use super::super::SSDPMessage;
-        use header::HeaderRef;
-        use receiver::FromRawSSDP;
+        use crate::header::HeaderRef;
+        use crate::receiver::FromRawSSDP;
 
         #[test]
         fn positive_valid_http() {

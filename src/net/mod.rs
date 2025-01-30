@@ -24,7 +24,7 @@ pub enum IpVersionMode {
 
 impl IpVersionMode {
     pub fn from_addr<A: ToSocketAddrs>(addr: A) -> io::Result<Self> {
-        match try!(addr_from_trait(addr)) {
+        match r#try!(addr_from_trait(addr)) {
             SocketAddr::V4(_) => Ok(IpVersionMode::V4Only),
             SocketAddr::V6(_) => Ok(IpVersionMode::V6Only),
         }
@@ -33,7 +33,7 @@ impl IpVersionMode {
 
 /// Accept a type implementing `ToSocketAddrs` and tries to extract the first address.
 pub fn addr_from_trait<A: ToSocketAddrs>(addr: A) -> io::Result<SocketAddr> {
-    let mut sock_iter = try!(addr.to_socket_addrs());
+    let mut sock_iter = r#try!(addr.to_socket_addrs());
 
     match sock_iter.next() {
         Some(n) => Ok(n),
@@ -43,30 +43,30 @@ pub fn addr_from_trait<A: ToSocketAddrs>(addr: A) -> io::Result<SocketAddr> {
 
 /// Bind to a `UdpSocket`, setting `SO_REUSEADDR` on the underlying socket before binding.
 pub fn bind_reuse<A: ToSocketAddrs>(local_addr: A) -> io::Result<UdpSocket> {
-    let local_addr = try!(addr_from_trait(local_addr));
+    let local_addr = r#try!(addr_from_trait(local_addr));
 
     let builder = match local_addr {
-        SocketAddr::V4(_) => try!(UdpBuilder::new_v4()),
-        SocketAddr::V6(_) => try!(UdpBuilder::new_v6()),
+        SocketAddr::V4(_) => r#try!(UdpBuilder::new_v4()),
+        SocketAddr::V6(_) => r#try!(UdpBuilder::new_v6()),
     };
 
-    try!(reuse_port(&builder));
+    r#try!(reuse_port(&builder));
     builder.bind(local_addr)
 }
 
 #[cfg(windows)]
 fn reuse_port(builder: &UdpBuilder) -> io::Result<()> {
     // Allow wildcards + specific to not overlap
-    try!(builder.reuse_address(true));
+    r#try!(builder.reuse_address(true));
     Ok(())
 }
 
 #[cfg(not(windows))]
 fn reuse_port(builder: &UdpBuilder) -> io::Result<()> {
     // Allow wildcards + specific to not overlap
-    try!(builder.reuse_address(true));
+    r#try!(builder.reuse_address(true));
     // Allow multiple listeners on the same port
-    try!(builder.reuse_port(true));
+    r#try!(builder.reuse_port(true));
     Ok(())
 }
 

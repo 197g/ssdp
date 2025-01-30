@@ -3,21 +3,21 @@
 use std::io;
 use std::net::SocketAddr;
 
-use net::connector::UdpConnector;
-use net::IpVersionMode;
+use crate::net::connector::UdpConnector;
+use crate::net::IpVersionMode;
 
+pub mod listen;
+pub mod multicast;
 mod notify;
 mod search;
 mod ssdp;
-pub mod listen;
-pub mod multicast;
 
 use get_if_addrs;
 
-pub use message::multicast::Multicast;
-pub use message::search::{SearchRequest, SearchResponse, SearchListener};
-pub use message::notify::{NotifyMessage, NotifyListener};
-pub use message::listen::Listen;
+pub use crate::message::listen::Listen;
+pub use crate::message::multicast::Multicast;
+pub use crate::message::notify::{NotifyListener, NotifyMessage};
+pub use crate::message::search::{SearchListener, SearchRequest, SearchResponse};
 
 /// Multicast Socket Information
 pub const UPNP_MULTICAST_IPV4_ADDR: &'static str = "239.255.255.250";
@@ -94,12 +94,12 @@ impl Default for Config {
 fn all_local_connectors(multicast_ttl: Option<u32>, filter: &IpVersionMode) -> io::Result<Vec<UdpConnector>> {
     trace!("Fetching all local connectors");
     map_local(|&addr| match (filter, addr) {
-        (&IpVersionMode::V4Only, SocketAddr::V4(n)) |
-        (&IpVersionMode::Any, SocketAddr::V4(n)) => {
-            Ok(Some(try!(UdpConnector::new((*n.ip(), 0), multicast_ttl))))
+        (&IpVersionMode::V4Only, SocketAddr::V4(n)) | (&IpVersionMode::Any, SocketAddr::V4(n)) => {
+            Ok(Some(r#try!(UdpConnector::new((*n.ip(), 0), multicast_ttl))))
         }
-        (&IpVersionMode::V6Only, SocketAddr::V6(n)) |
-        (&IpVersionMode::Any, SocketAddr::V6(n)) => Ok(Some(try!(UdpConnector::new(n, multicast_ttl)))),
+        (&IpVersionMode::V6Only, SocketAddr::V6(n)) | (&IpVersionMode::Any, SocketAddr::V6(n)) => {
+            Ok(Some(r#try!(UdpConnector::new(n, multicast_ttl))))
+        }
         _ => Ok(None),
     })
 }
@@ -108,9 +108,10 @@ fn all_local_connectors(multicast_ttl: Option<u32>, filter: &IpVersionMode) -> i
 ///
 /// This method filters out _loopback_ and _global_ addresses.
 fn map_local<F, R>(mut f: F) -> io::Result<Vec<R>>
-    where F: FnMut(&SocketAddr) -> io::Result<Option<R>>
+where
+    F: FnMut(&SocketAddr) -> io::Result<Option<R>>,
 {
-    let addrs_iter = try!(get_local_addrs());
+    let addrs_iter = r#try!(get_local_addrs());
 
     let mut obj_list = Vec::with_capacity(addrs_iter.len());
 
@@ -118,13 +119,13 @@ fn map_local<F, R>(mut f: F) -> io::Result<Vec<R>>
         trace!("Found {}", addr);
         match addr {
             SocketAddr::V4(n) if !n.ip().is_loopback() => {
-                if let Some(x) = try!(f(&addr)) {
+                if let Some(x) = r#try!(f(&addr)) {
                     obj_list.push(x);
                 }
             }
             // Filter all loopback and global IPv6 addresses
-            SocketAddr::V6(n) if !n.ip().is_loopback() && !n.ip().is_global() => {
-                if let Some(x) = try!(f(&addr)) {
+            SocketAddr::V6(n) if !n.ip().is_loopback() && is_not_global_v6(*n.ip()) => {
+                if let Some(x) = r#try!(f(&addr)) {
                     obj_list.push(x);
                 }
             }
@@ -135,11 +136,38 @@ fn map_local<F, R>(mut f: F) -> io::Result<Vec<R>>
     Ok(obj_list)
 }
 
+/// Determine if an address is not global.
+///
+/// This may return incorrectly return `false` for some addresses that are not actually global. We
+/// error on the side of caution by under-approximating the set.
+fn is_not_global_v6(addr: std::net::Ipv6Addr) -> bool {
+    // As by [RFC3056], everything in `2002::/16`
+    fn is_6to4(addr: std::net::Ipv6Addr) -> bool {
+        addr.segments()[0] == 0x2002
+    }
+
+    addr.is_unspecified()
+        || addr.is_loopback()
+        // The most important case
+        || addr.is_unique_local()
+        // Second most relevant case, at least by my judgement.
+        || addr.is_unicast_link_local()
+        || is_6to4(addr)
+
+    // There are two more cases (unstable features) that are less relevant. We only want interfaces
+    // which are probably useful to the user (they can provide a specific configuration if they
+    // whish).
+    // || addr.is_benchmarking()
+    // || addr.is_documentation()
+}
+
 /// Generate a list of some object R constructed from all local `Ipv4Addr` objects.
 ///
 /// If any of the `SocketAddr`'s fail to resolve, this function will not return an error.
 fn get_local_addrs() -> io::Result<Vec<SocketAddr>> {
-    let iface_iter = try!(get_if_addrs::get_if_addrs()).into_iter();
-    Ok(iface_iter.filter_map(|iface| Some(SocketAddr::new(iface.addr.ip(), 0)))
+    let iface_iter = r#try!(get_if_addrs::get_if_addrs()).into_iter();
+    Ok(iface_iter
+        .filter_map(|iface| Some(SocketAddr::new(iface.addr.ip(), 0)))
         .collect())
 }
+

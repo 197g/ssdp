@@ -1,7 +1,7 @@
 use std::fmt::{Formatter, Result};
 
 use hyper::error::{self, Error};
-use hyper::header::{HeaderFormat, Header};
+use hyper::header::{Header, HeaderFormat};
 
 const SECURELOCATION_HEADER_NAME: &'static str = "SECURELOCATION.UPNP.ORG";
 
@@ -32,7 +32,7 @@ impl Header for SecureLocation {
 
 impl HeaderFormat for SecureLocation {
     fn fmt_header(&self, fmt: &mut Formatter) -> Result {
-        r#try!(fmt.write_str(&self.0));
+        fmt.write_str(&self.0)?;
 
         Ok(())
     }

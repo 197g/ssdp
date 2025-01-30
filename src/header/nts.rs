@@ -48,9 +48,9 @@ impl Header for NTS {
 impl HeaderFormat for NTS {
     fn fmt_header(&self, fmt: &mut Formatter) -> Result {
         match *self {
-            NTS::Alive => r#try!(fmt.write_str(ALIVE_HEADER)),
-            NTS::Update => r#try!(fmt.write_str(UPDATE_HEADER)),
-            NTS::ByeBye => r#try!(fmt.write_str(BYEBYE_HEADER)),
+            NTS::Alive => fmt.write_str(ALIVE_HEADER)?,
+            NTS::Update => fmt.write_str(UPDATE_HEADER)?,
+            NTS::ByeBye => fmt.write_str(BYEBYE_HEADER)?,
         };
 
         Ok(())

@@ -41,10 +41,10 @@ impl Default for NotifyMessage {
 
 impl FromRawSSDP for NotifyMessage {
     fn raw_ssdp(bytes: &[u8]) -> SSDPResult<NotifyMessage> {
-        let message = r#try!(SSDPMessage::raw_ssdp(bytes));
+        let message = SSDPMessage::raw_ssdp(bytes)?;
 
         if message.message_type() != MessageType::Notify {
-            r#try!(Err("SSDP Message Received Is Not A NotifyMessage"))
+            Err("SSDP Message Received Is Not A NotifyMessage")?
         } else {
             Ok(NotifyMessage { message: message })
         }

@@ -38,7 +38,7 @@ impl Header for NT {
 
 impl HeaderFormat for NT {
     fn fmt_header(&self, fmt: &mut Formatter) -> Result {
-        r#try!(Display::fmt(&self.0, fmt));
+        Display::fmt(&self.0, fmt)?;
 
         Ok(())
     }

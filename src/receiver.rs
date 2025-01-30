@@ -53,7 +53,7 @@ impl<T> SSDPReceiver<T>
 
         // Ensure `receive_packets` times out in the event the timeout packet is not received
         for sock in socks.iter() {
-            r#try!(sock.set_read_timeout(time));
+            sock.set_read_timeout(time)?;
         }
 
         // Spawn Receiver Threads

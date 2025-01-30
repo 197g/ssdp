@@ -38,7 +38,7 @@ impl Header for BootID {
 
 impl HeaderFormat for BootID {
     fn fmt_header(&self, fmt: &mut Formatter) -> Result {
-        r#try!(fmt.write_fmt(format_args!("{}", self.0)));
+        fmt.write_fmt(format_args!("{}", self.0))?;
 
         Ok(())
     }

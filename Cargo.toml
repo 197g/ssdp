@@ -1,7 +1,7 @@
 [package]
 name = "ssdp"
 version = "0.7.0"
-edition = "2018"
+edition = "2021"
 
 license = "MIT/Apache-2.0"
 description = "An asynchronous abstraction for discovering devices and services on a network."

@@ -59,7 +59,7 @@ impl SSDPMessage {
     /// The host header field will be taken care of by the underlying library.
     pub fn send<A: ToSocketAddrs, C, S>(&self, connector: &mut C, dst_addr: A) -> SSDPResult<()>
         where C: NetworkConnector<Stream = S>,
-              S: Into<Box<NetworkStream + Send>>
+              S: Into<Box<dyn NetworkStream + Send>>
     {
         let dst_sock_addr = r#try!(net::addr_from_trait(dst_addr));
         match self.method {
@@ -93,7 +93,7 @@ fn send_request<C, S>(method: &str,
                       dst_addr: SocketAddr)
                       -> SSDPResult<()>
     where C: NetworkConnector<Stream = S>,
-          S: Into<Box<NetworkStream + Send>>
+          S: Into<Box<dyn NetworkStream + Send>>
 {
     trace!("Trying to parse url...");
     let url = r#try!(url_from_addr(dst_addr));
@@ -124,7 +124,7 @@ fn send_response<W>(headers: &Headers, mut dst_writer: W) -> SSDPResult<()>
     copy_headers(headers, &mut temp_headers);
     temp_headers.set(ContentLength(0));
 
-    let mut response = Response::new(&mut dst_writer as &mut Write, &mut temp_headers);
+    let mut response = Response::new(&mut dst_writer as &mut dyn Write, &mut temp_headers);
     *response.status_mut() = StatusCode::Ok;
 
     // Have to make sure response is destroyed here for lifetime issues with temp_headers

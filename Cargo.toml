@@ -17,7 +17,6 @@ readme = "README.md"
 log = "0.4"
 net2 = "0.2.23"
 netdev = "0.32.0"
-time = "0.1"
 quick-error = "2"
 
 [dependencies.hyper]

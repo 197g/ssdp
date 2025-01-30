@@ -8,11 +8,8 @@
 //! discover each other. SSDP can most commonly be found in devices that implement
 //! `UPnP` as it is used as the discovery mechanism for that standard.
 
-extern crate hyper;
 #[macro_use]
 extern crate log;
-extern crate time;
-extern crate net2;
 
 mod error;
 mod field;

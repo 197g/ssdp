@@ -16,9 +16,6 @@ use crate::{SSDPError, SSDPResult};
 /// Only Valid `SearchResponse` Code
 const VALID_RESPONSE_CODE: u16 = 200;
 
-/// Appended To Destination Socket Addresses For URLs
-const BASE_HOST_URL: &'static str = "httpm://";
-
 /// Case-Sensitive Method Names
 const NOTIFY_METHOD: &'static str = "NOTIFY";
 const SEARCH_METHOD: &'static str = "M-SEARCH";
@@ -186,7 +183,7 @@ impl FromRawSSDP for SSDPMessage {
             let mut fallback_buffer: Box<[httparse::Header]>;
             let mut response = httparse::Response::new(&mut initial_buffer);
 
-            let count = match http1.parse_response(&mut response, bytes) {
+            let after_header_count = match http1.parse_response(&mut response, bytes) {
                 Ok(count) => is_complete(count)?,
                 Err(httparse::Error::TooManyHeaders) => {
                     fallback_buffer = vec![httparse::EMPTY_HEADER; 1 << 12].into();
@@ -198,28 +195,47 @@ impl FromRawSSDP for SSDPMessage {
                 }
             };
 
+            let Some(body) = bytes.get(after_header_count..) else {
+                return Err(SSDPError::PartialHttp);
+            };
+
+            if !body.is_empty() {
+                return Err(SSDPError::InvalidBodyForMethod("M-SEARCH".into()));
+            }
+
             let message_result = message_from_response(response);
             log_message_result(&message_result, bytes);
 
             message_result
         } else {
             let mut fallback_buffer: Box<[httparse::Header]>;
-            let mut response = httparse::Request::new(&mut initial_buffer);
+            let mut request = httparse::Request::new(&mut initial_buffer);
 
-            let count = match http1.parse_request(&mut response, bytes) {
+            let after_header_count = match http1.parse_request(&mut request, bytes) {
                 Ok(count) => is_complete(count)?,
                 Err(httparse::Error::TooManyHeaders) => {
                     fallback_buffer = vec![httparse::EMPTY_HEADER; 1 << 12].into();
-                    response = httparse::Request::new(&mut fallback_buffer[..]);
-                    is_complete(http1.parse_request(&mut response, bytes)?)?
+                    request = httparse::Request::new(&mut fallback_buffer[..]);
+                    is_complete(http1.parse_request(&mut request, bytes)?)?
                 }
                 Err(other) => {
                     return Err(other)?;
                 }
             };
 
-            let message_result = message_from_request(response);
+            let Some(body) = bytes.get(after_header_count..) else {
+                return Err(SSDPError::PartialHttp);
+            };
+
+            let method = request.method.unwrap();
+            let message_result = message_from_request(request);
             log_message_result(&message_result, bytes);
+
+            if !body.is_empty() {
+                let method = method.to_string().into();
+                return Err(SSDPError::InvalidBodyForMethod(method));
+            }
+
             message_result
         }
     }

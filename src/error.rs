@@ -20,6 +20,10 @@ quick_error! {
         PartialHttp {
             display("partial HTTP message")
         }
+        /// The Method used does not allow a body, but one was present.
+        InvalidBodyForMethod(method: Cow<'static, str>) {
+            display("body is not allowed in method {}", method)
+        }
         /// Message did not specify HTTP/1.1 as version.
         InvalidHttpVersion { }
         /// Message consists of an error code.

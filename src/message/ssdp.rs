@@ -94,20 +94,20 @@ where
     let url = url_from_addr(dst_addr)?;
     trace!("Url: {}", url);
 
-    let mut request = Request {
-        method: Some(&method),
-        path: Some("*"),
-        version: Some(1),
-        headers: &mut [],
-    };
-
-    trace!("Copying headers...");
+    trace!("Setting up headers...");
     let mut headers = headers.clone();
-    trace!("Setting length");
-    headers.set(headers::ContentLength(0));
+    // headers.set(headers::ContentLength(0));
 
+    let mut request = net::httpu::Request::new(&headers);
+    request.method = method;
+
+    let mut buffer = net::packet::PacketBuffer::default();
+    request.serialize(&mut buffer)?;
+
+    let sender = connector.connect(&dst_addr.ip().to_string(), dst_addr.port())?;
+    let mut sender: Box<dyn net::NetworkStream + Send> = sender.into();
     trace!("actual .send ...");
-    // request.start()?.send()?;
+    sender.send(&buffer)?;
 
     Ok(())
 }

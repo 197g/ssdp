@@ -12,6 +12,7 @@ use net2::unix::UnixUdpBuilderExt;
 use net2::UdpBuilder;
 
 pub mod connector;
+pub mod httpu;
 pub mod packet;
 pub mod sender;
 
@@ -100,6 +101,12 @@ pub fn leave_multicast(sock: &UdpSocket, iface_addr: &SocketAddr, mcast_addr: &S
 /// Interface taken from: `hyper:0.10`.
 pub trait NetworkStream: io::Read + io::Write + Send {
     fn peer_addr(&mut self) -> Result<SocketAddr, io::Error>;
+
+    fn send(&mut self, packet: &packet::PacketBuffer) -> Result<(), io::Error> {
+        self.write_all(&packet.buffer)?;
+        self.flush()?;
+        Ok(())
+    }
 }
 
 /// A connector creates a NetworkStream.

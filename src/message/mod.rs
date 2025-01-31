@@ -98,7 +98,8 @@ fn all_local_connectors(multicast_ttl: Option<u32>, filter: &IpVersionMode) -> i
             Ok(Some(UdpConnector::new((*n.ip(), 0), multicast_ttl)?))
         }
         (&IpVersionMode::V6Only, SocketAddr::V6(n)) | (&IpVersionMode::Any, SocketAddr::V6(n)) => {
-            Ok(Some(UdpConnector::new(n, multicast_ttl)?))
+            // Skip addresses we can not bind to..
+            Ok(Some(UdpConnector::new((*n.ip(), 0), multicast_ttl)?))
         }
         _ => Ok(None),
     })
@@ -151,7 +152,6 @@ fn is_not_global_v6(addr: std::net::Ipv6Addr) -> bool {
         // The most important case
         || addr.is_unique_local()
         // Second most relevant case, at least by my judgement.
-        || addr.is_unicast_link_local()
         || is_6to4(addr)
 
     // There are two more cases (unstable features) that are less relevant. We only want interfaces
@@ -159,6 +159,9 @@ fn is_not_global_v6(addr: std::net::Ipv6Addr) -> bool {
     // whish).
     // || addr.is_benchmarking()
     // || addr.is_documentation()
+    //
+    // Do not try to bind to link-local address.
+    // || addr.is_unicast_link_local()
 }
 
 /// Generate a list of some object R constructed from all local `Ipv4Addr` objects.

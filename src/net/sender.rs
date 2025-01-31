@@ -1,6 +1,6 @@
+use crate::net::{self, NetworkStream};
 use std::io::{self, ErrorKind, Read, Write};
-use std::net::{UdpSocket, SocketAddr};
-use crate::net::NetworkStream;
+use std::net::{SocketAddr, UdpSocket};
 
 /// A type that wraps a `UdpSocket` and a `SocketAddr` and implements the `NetworkStream`
 /// trait.
@@ -12,16 +12,16 @@ use crate::net::NetworkStream;
 pub struct UdpSender {
     udp: UdpSocket,
     dst: SocketAddr,
-    buf: Vec<u8>,
+    buf: net::packet::PacketBuffer,
 }
 
 impl UdpSender {
     /// Creates a new UdpSender object.
     pub fn new(udp: UdpSocket, dst: SocketAddr) -> UdpSender {
         UdpSender {
-            udp: udp,
-            dst: dst,
-            buf: Vec::new(),
+            udp,
+            dst,
+            buf: Default::default(),
         }
     }
 }
@@ -41,28 +41,14 @@ impl Read for UdpSender {
 
 impl Write for UdpSender {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        // Hyper will generate a request with a /, we need to intercept that.
-        let mut buffer = vec![0u8; buf.len()];
-
-        let mut found = false;
-        for (src, dst) in buf.iter().zip(buffer.iter_mut()) {
-            if *src == b'/' && !found && buf[0] != b'H' {
-                *dst = b'*';
-                found = true;
-            } else {
-                *dst = *src;
-            }
-        }
-
-        self.buf.append(&mut buffer);
-
-        Ok(buf.len())
+        self.buf.write(buf)
     }
 
     fn flush(&mut self) -> io::Result<()> {
-        debug!("Sent HTTP Request:\n{}", String::from_utf8_lossy(&self.buf[..]));
+        let data = self.buf.as_slice();
+        let result = self.udp.send_to(data, self.dst);
 
-        let result = self.udp.send_to(&self.buf[..], self.dst);
+        debug!("Sent HTTP Request:\n{}", String::from_utf8_lossy(data));
         self.buf.clear();
 
         result.map(|_| ())

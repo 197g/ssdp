@@ -1,5 +1,3 @@
-extern crate ssdp;
-
 use ssdp::header::{HeaderMut, Man, MX, ST};
 use ssdp::message::{SearchRequest, Multicast};
 

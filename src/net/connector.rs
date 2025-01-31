@@ -15,7 +15,7 @@ impl UdpConnector {
     /// Create a new UdpConnector that will be bound to the given local address.
     pub fn new<A: ToSocketAddrs>(local_addr: A, _: Option<u32>) -> io::Result<UdpConnector> {
         let addr = net::addr_from_trait(local_addr)?;
-        debug!("Attempting to connect to {}", addr);
+        debug!("Attempting to bind to {}", addr);
 
         let udp = UdpSocket::bind(addr)?;
 

@@ -96,7 +96,6 @@ where
 
     trace!("Setting up headers...");
     let mut headers = headers.clone();
-    // headers.set(headers::ContentLength(0));
 
     let mut request = net::httpu::Request::new(&headers);
     request.method = method;

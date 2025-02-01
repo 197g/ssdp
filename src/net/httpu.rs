@@ -28,14 +28,14 @@ impl<'map> Request<'map> {
 
     pub fn serialize(&self, packet: &mut PacketBuffer) -> Result<(), SSDPError> {
         packet.buffer.truncate(0);
-        writeln!(packet, "{} * HTTP/1.1", self.method)?;
-        writeln!(packet, "HOST: 239.255.255.250:1900")?;
+        write!(packet, "{} * HTTP/1.1\r\n", self.method)?;
+        write!(packet, "HOST: 239.255.255.250:1900\r\n")?;
         for (name, value) in self.headers {
             write!(packet, "{}: ", name.as_str().to_uppercase())?;
             packet.write_all(value.as_bytes())?;
-            writeln!(packet, "")?;
+            write!(packet, "\r\n")?;
         }
-        writeln!(packet, "")?;
+        write!(packet, "\r\n")?;
         Ok(())
     }
 }

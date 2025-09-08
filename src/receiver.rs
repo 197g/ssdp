@@ -1,14 +1,15 @@
 //! Primitives for non-blocking SSDP message receiving.
 
 use std::io;
+use std::net::{SocketAddr, UdpSocket};
 use std::result::Result;
+use std::sync::mpsc::{self, Iter, Receiver, RecvError, Sender, TryRecvError};
+use std::sync::Arc;
 use std::thread;
-use std::sync::mpsc::{self, Receiver, Sender, TryRecvError, RecvError, Iter};
-use std::net::{UdpSocket, SocketAddr};
 use std::time::Duration;
 
-use crate::SSDPResult;
 use crate::net::packet::PacketReceiver;
+use crate::SSDPResult;
 
 /// Trait for constructing an object from some serialized SSDP message.
 pub trait FromRawSSDP: Sized {
@@ -42,7 +43,8 @@ pub struct SSDPReceiver<T> {
 }
 
 impl<T> SSDPReceiver<T>
-    where T: FromRawSSDP + Send + 'static
+where
+    T: FromRawSSDP + Send + 'static,
 {
     /// Construct a receiver that receives bytes from a number of UdpSockets and
     /// tries to construct an object T from them. If a duration is provided, the
@@ -50,7 +52,7 @@ impl<T> SSDPReceiver<T>
     ///
     /// Due to implementation details, none of the UdpSockets should be bound to
     /// the default route, 0.0.0.0, address.
-    pub fn new(socks: Vec<UdpSocket>, time: Option<Duration>) -> io::Result<SSDPReceiver<T>> {
+    pub fn new(socks: Vec<Arc<UdpSocket>>, time: Option<Duration>) -> io::Result<SSDPReceiver<T>> {
         let (send, recv) = mpsc::channel();
 
         // Ensure `receive_packets` times out in the event the timeout packet is not received
@@ -67,8 +69,9 @@ impl<T> SSDPReceiver<T>
 
 /// Spawn a number of receiver threads that will receive packets, forward the
 /// bytes on to T, and send successfully constructed objects through the sender.
-fn spawn_receivers<T>(socks: Vec<UdpSocket>, sender: Sender<(T, SocketAddr)>)
-    where T: FromRawSSDP + Send + 'static
+fn spawn_receivers<T>(socks: Vec<Arc<UdpSocket>>, sender: Sender<(T, SocketAddr)>)
+where
+    T: FromRawSSDP + Send + 'static,
 {
     for sock in socks {
         let pckt_recv = PacketReceiver::new(sock);
@@ -123,7 +126,8 @@ impl<T> IntoIterator for SSDPReceiver<T> {
 ///
 /// This should almost always be run in it's own thread.
 fn receive_packets<T>(recv: PacketReceiver, send: Sender<(T, SocketAddr)>)
-    where T: FromRawSSDP + Send
+where
+    T: FromRawSSDP + Send,
 {
     // TODO: Add logging to this function. Maybe forward sender IP Address along
     // so that we can do some checks when we parse the http.
@@ -132,8 +136,9 @@ fn receive_packets<T>(recv: PacketReceiver, send: Sender<(T, SocketAddr)>)
         let (msg_bytes, addr) = match recv.recv_pckt() {
             Ok((bytes, addr)) => (bytes, addr),
             // Unix returns WouldBlock on timeout while Windows returns TimedOut
-            Err(ref err) if err.kind() == io::ErrorKind::WouldBlock ||
-                            err.kind() == io::ErrorKind::TimedOut => {
+            Err(ref err)
+                if err.kind() == io::ErrorKind::WouldBlock || err.kind() == io::ErrorKind::TimedOut =>
+            {
                 // We have waited for at least the desired timeout (or possibly longer)
                 trace!("Receiver at {} timed out", recv);
                 return;

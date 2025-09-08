@@ -65,8 +65,8 @@ impl Multicast for SearchRequest {
 
     fn multicast_with_config(&self, config: &Config) -> SSDPResult<Self::Item> {
         let connectors = multicast::send(&self.message, config)?;
-
         let mcast_timeout = multicast_timeout(self.message.headers().typed_get::<MX>())?;
+        trace!("Sending to {} connectors with {:?}", connectors.len(), mcast_timeout);
         let mut raw_connectors = Vec::with_capacity(connectors.len());
         raw_connectors.extend(connectors.into_iter().map(|conn| conn.deconstruct()));
 

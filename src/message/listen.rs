@@ -28,11 +28,11 @@ pub trait Listen {
         let mut ipv6_sock = None;
 
         // Generate a list of reused sockets on the standard multicast address.
-        let addrs: Vec<SocketAddr> = message::map_local(|&addr| Ok(Some(addr)))?;
+        let addrs: Vec<_> = message::map_local(|&addr| Ok(Some(addr)))?;
 
-        for addr in addrs {
-            match addr {
-                SocketAddr::V4(_) => {
+        for iface in addrs {
+            match &iface.sock {
+                IpAddr::V4(v4) => {
                     let mcast_ip = config.ipv4_addr.parse().unwrap();
 
                     if ipv4_sock.is_none() {
@@ -41,10 +41,11 @@ pub trait Listen {
 
                     let ref sock = ipv4_sock.as_ref().unwrap();
 
-                    debug!("Joining ipv4 multicast {} at iface: {}", mcast_ip, addr);
+                    debug!("Joining ipv4 multicast {} at iface: {}", mcast_ip, iface.sock);
+                    let addr = SocketAddr::V4(std::net::SocketAddrV4::new(*v4, 0));
                     net::join_multicast(&sock, &addr, &mcast_ip)?;
                 }
-                SocketAddr::V6(_) => {
+                IpAddr::V6(v6) => {
                     let mcast_ip = config.ipv6_addr.parse().unwrap();
 
                     if ipv6_sock.is_none() {
@@ -53,7 +54,8 @@ pub trait Listen {
 
                     let ref sock = ipv6_sock.as_ref().unwrap();
 
-                    debug!("Joining ipv6 multicast {} at iface: {}", mcast_ip, addr);
+                    debug!("Joining ipv6 multicast {} at iface: {}", mcast_ip, iface.sock);
+                    let addr = SocketAddr::V6(std::net::SocketAddrV6::new(*v6, 0, 0, iface.index));
                     net::join_multicast(&sock, &addr, &IpAddr::V6(mcast_ip))?;
                 }
             }
@@ -62,6 +64,7 @@ pub trait Listen {
         let sockets = vec![ipv4_sock, ipv6_sock]
             .into_iter()
             .flat_map(|opt_interface| opt_interface)
+            .map(std::sync::Arc::new)
             .collect();
 
         Ok(SSDPReceiver::new(sockets, None)?)
@@ -84,7 +87,11 @@ pub trait Listen {
         let ipv6_sock = net::bind_reuse(("::", config.port))?;
         ipv6_sock.join_multicast_v6(&mcast_ip, 0)?;
 
-        let sockets = vec![ipv4_sock, ipv6_sock];
+        let sockets = [ipv4_sock, ipv6_sock]
+            .into_iter()
+            .map(std::sync::Arc::new)
+            .collect();
+
         Ok(SSDPReceiver::new(sockets, None)?)
     }
 }

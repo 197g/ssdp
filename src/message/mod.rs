@@ -1,10 +1,10 @@
 //! Messaging primitives for discovering devices and services.
 
 use std::io;
-use std::net::{IpAddr, SocketAddr};
+use std::net::IpAddr;
 
 use crate::net::connector::UdpConnector;
-use crate::net::IpVersionMode;
+use crate::net::{IpVersionMode, NetifAddr};
 
 pub mod listen;
 pub mod multicast;
@@ -21,7 +21,7 @@ pub use crate::message::search::{SearchListener, SearchRequest, SearchResponse};
 
 /// Multicast Socket Information
 pub const UPNP_MULTICAST_IPV4_ADDR: &'static str = "239.255.255.250";
-pub const UPNP_MULTICAST_IPV6_LINK_LOCAL_ADDR: &'static str = "FF02::C";
+pub const UPNP_MULTICAST_IPV6_LINK_LOCAL_ADDR: &'static str = "FF05::C";
 pub const UPNP_MULTICAST_PORT: u16 = 1900;
 
 /// Default TTL For Multicast
@@ -93,13 +93,13 @@ impl Default for Config {
 /// Generate `UdpConnector` objects for all local `IPv4` interfaces.
 fn all_local_connectors(multicast_ttl: Option<u32>, filter: &IpVersionMode) -> io::Result<Vec<UdpConnector>> {
     trace!("Fetching all local connectors");
-    map_local(|&addr| match (filter, addr) {
-        (&IpVersionMode::V4Only, SocketAddr::V4(n)) | (&IpVersionMode::Any, SocketAddr::V4(n)) => {
-            Ok(Some(UdpConnector::new((*n.ip(), 0), multicast_ttl)?))
+    map_local(|iface| match (filter, iface.sock) {
+        (&IpVersionMode::V4Only, IpAddr::V4(n)) | (&IpVersionMode::Any, IpAddr::V4(n)) => {
+            Ok(Some(UdpConnector::new((n, 0), iface.index, multicast_ttl)?))
         }
-        (&IpVersionMode::V6Only, SocketAddr::V6(n)) | (&IpVersionMode::Any, SocketAddr::V6(n)) => {
+        (&IpVersionMode::V6Only, IpAddr::V6(n)) | (&IpVersionMode::Any, IpAddr::V6(n)) => {
             // Skip addresses we can not bind to..
-            Ok(Some(UdpConnector::new((*n.ip(), 0), multicast_ttl)?))
+            Ok(Some(UdpConnector::new((n, 0), iface.index, multicast_ttl)?))
         }
         _ => Ok(None),
     })
@@ -110,22 +110,22 @@ fn all_local_connectors(multicast_ttl: Option<u32>, filter: &IpVersionMode) -> i
 /// This method filters out _loopback_ and _global_ addresses.
 fn map_local<F, R>(mut f: F) -> io::Result<Vec<R>>
 where
-    F: FnMut(&SocketAddr) -> io::Result<Option<R>>,
+    F: FnMut(&NetifAddr) -> io::Result<Option<R>>,
 {
     let addrs_iter = get_local_addrs()?;
 
     let mut obj_list = Vec::with_capacity(addrs_iter.len());
 
     for addr in addrs_iter {
-        trace!("Found {}", addr);
-        match addr {
-            SocketAddr::V4(n) if !n.ip().is_loopback() => {
+        trace!("Found {} @ {}", addr.sock, addr.index);
+        match addr.sock {
+            IpAddr::V4(n) if !n.is_loopback() => {
                 if let Some(x) = f(&addr)? {
                     obj_list.push(x);
                 }
             }
             // Filter all loopback and global IPv6 addresses
-            SocketAddr::V6(n) if !n.ip().is_loopback() && is_not_global_v6(*n.ip()) => {
+            IpAddr::V6(n) if !n.is_loopback() && is_not_global_v6(n) => {
                 if let Some(x) = f(&addr)? {
                     obj_list.push(x);
                 }
@@ -167,7 +167,7 @@ fn is_not_global_v6(addr: std::net::Ipv6Addr) -> bool {
 /// Generate a list of some object R constructed from all local `Ipv4Addr` objects.
 ///
 /// If any of the `SocketAddr`'s fail to resolve, this function will not return an error.
-fn get_local_addrs() -> io::Result<Vec<SocketAddr>> {
+fn get_local_addrs() -> io::Result<Vec<NetifAddr>> {
     let iface_iter = get_interfaces().into_iter();
     Ok(iface_iter
         // NOTE: this is incomplete. With IPv6 all link-local addresses need to be annotated with
@@ -178,8 +178,9 @@ fn get_local_addrs() -> io::Result<Vec<SocketAddr>> {
         .flat_map(|iface| {
             let ipv4 = iface.ipv4.into_iter().map(|ip| IpAddr::from(ip.addr()));
             let ipv6 = iface.ipv6.into_iter().map(|ip| IpAddr::from(ip.addr()));
+            let index = iface.index;
 
-            ipv4.chain(ipv6).map(|ip| SocketAddr::new(ip, 0))
+            ipv4.chain(ipv6).map(move |ip| NetifAddr { sock: ip, index })
         })
         .collect())
 }

@@ -1,6 +1,7 @@
 use crate::net::{self, NetworkStream};
 use std::io::{self, ErrorKind, Read, Write};
 use std::net::{SocketAddr, UdpSocket};
+use std::sync::Arc;
 
 /// A type that wraps a `UdpSocket` and a `SocketAddr` and implements the `NetworkStream`
 /// trait.
@@ -10,14 +11,14 @@ use std::net::{SocketAddr, UdpSocket};
 /// The response(s) from client(s) are to be handled by some other object that
 /// has a cloned handle to our internal `UdpSocket` handle.
 pub struct UdpSender {
-    udp: UdpSocket,
+    udp: Arc<UdpSocket>,
     dst: SocketAddr,
     buf: net::packet::PacketBuffer,
 }
 
 impl UdpSender {
     /// Creates a new UdpSender object.
-    pub fn new(udp: UdpSocket, dst: SocketAddr) -> UdpSender {
+    pub fn new(udp: Arc<UdpSocket>, dst: SocketAddr) -> UdpSender {
         UdpSender {
             udp,
             dst,
@@ -57,19 +58,15 @@ impl Write for UdpSender {
 
 impl Clone for UdpSender {
     fn clone(&self) -> UdpSender {
-        let udp_clone = self.udp.try_clone().unwrap();
-
         UdpSender {
-            udp: udp_clone,
+            udp: Arc::clone(&self.udp),
             dst: self.dst,
             buf: self.buf.clone(),
         }
     }
 
     fn clone_from(&mut self, source: &UdpSender) {
-        let udp_clone = source.udp.try_clone().unwrap();
-
-        self.udp = udp_clone;
+        self.udp = Arc::clone(&self.udp);
         self.dst = source.dst;
     }
 }

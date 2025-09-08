@@ -23,6 +23,12 @@ pub enum IpVersionMode {
     Any,
 }
 
+#[derive(Clone, Copy)]
+pub struct NetifAddr {
+    pub sock: IpAddr,
+    pub index: u32,
+}
+
 impl IpVersionMode {
     pub fn from_addr<A: ToSocketAddrs>(addr: A) -> io::Result<Self> {
         match addr_from_trait(addr)? {

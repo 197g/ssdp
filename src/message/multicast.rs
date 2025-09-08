@@ -19,28 +19,38 @@ pub trait Multicast {
 pub fn send(message: &SSDPMessage, config: &Config) -> SSDPResult<Vec<UdpConnector>> {
     let mut connectors = message::all_local_connectors(Some(config.ttl), &config.mode)?;
 
-    for conn in &mut connectors {
-        match conn.local_addr()? {
-            SocketAddr::V4(n) => {
-                let mcast_addr = (config.ipv4_addr.as_str(), config.port);
-                debug!("Sending ipv4 multicast through {} to {:?}", n, mcast_addr);
-                message.send(conn, &mcast_addr)?;
-            }
-            SocketAddr::V6(n) => {
-                debug!("Sending Ipv6 multicast through {} to {}:{}", n, config.ipv6_addr, config.port);
-                //try!(message.send(conn, &mcast_addr));
-                message.send(
-                    conn,
-                    &SocketAddrV6::new(
-                        FromStr::from_str(config.ipv6_addr.as_str())?,
-                        config.port,
-                        n.flowinfo(),
-                        n.scope_id(),
-                    ),
-                )?
-            }
+    connectors.retain_mut(|conn| {
+        let success = conn
+            .local_addr()
+            .map_err(crate::error::SSDPError::from)
+            .and_then(|addr| match addr {
+                SocketAddr::V4(n) => {
+                    let mcast_addr = (config.ipv4_addr.as_str(), config.port);
+                    debug!("Sending ipv4 multicast through {} to {:?}", n, mcast_addr);
+                    message.send(conn, &mcast_addr)
+                }
+                SocketAddr::V6(n) => {
+                    debug!("Sending Ipv6 multicast through {} to [{}]:{}", n, config.ipv6_addr, config.port);
+                    //try!(message.send(conn, &mcast_addr));
+                    message.send(
+                        conn,
+                        &SocketAddrV6::new(
+                            FromStr::from_str(config.ipv6_addr.as_str()).unwrap(),
+                            config.port,
+                            n.flowinfo(),
+                            n.scope_id(),
+                        ),
+                    )
+                }
+            });
+
+        if let Err(e) = success {
+            debug!("Dropping due to {e:?}");
+            false
+        } else {
+            true
         }
-    }
+    });
 
     Ok(connectors)
 }

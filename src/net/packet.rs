@@ -1,6 +1,7 @@
 use std::fmt;
 use std::io::{self, Error, ErrorKind};
 use std::net::{SocketAddr, UdpSocket};
+use std::sync::Arc;
 
 /// Maximum length for packets received on a `PacketReceiver`.
 pub const MAX_PCKT_LEN: usize = 1500;
@@ -10,7 +11,7 @@ pub const MAX_PCKT_LEN: usize = 1500;
 /// be no larger than what the typical MTU would be on a standard router.
 ///
 /// See `net::packet::MAX_PCKT_LEN`.
-pub struct PacketReceiver(UdpSocket);
+pub struct PacketReceiver(Arc<UdpSocket>);
 
 /// An owned buffer suitable for packet.
 #[derive(Clone)]
@@ -30,7 +31,7 @@ impl Default for PacketBuffer {
 
 impl PacketReceiver {
     /// Create a new PacketReceiver from the given UdpSocket.
-    pub fn new(udp: UdpSocket) -> PacketReceiver {
+    pub fn new(udp: Arc<UdpSocket>) -> PacketReceiver {
         PacketReceiver(udp)
     }
 

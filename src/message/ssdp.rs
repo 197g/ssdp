@@ -90,9 +90,18 @@ where
     C: NetworkConnector<Stream = S>,
     S: Into<Box<dyn NetworkStream + Send>>,
 {
+    struct HttpmAddr {
+        sock: SocketAddr,
+    }
+
+    impl core::fmt::Display for HttpmAddr {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "httpm://{}", self.sock)
+        }
+    }
+
     trace!("Trying to parse url...");
-    let url = url_from_addr(dst_addr)?;
-    trace!("Url: {}", url);
+    trace!("Url: {}", HttpmAddr { sock: dst_addr });
 
     trace!("Setting up headers...");
     let mut headers = headers.clone();
@@ -130,26 +139,6 @@ where
     // response.start()?.end()?;
 
     Ok(())
-}
-
-/// Convert the given address to a Url with a base of "httpm://".
-fn url_from_addr(addr: SocketAddr) -> SSDPResult<url::Url> {
-    use url::{Host, Origin};
-
-    let (host, port);
-    match addr {
-        SocketAddr::V4(v4) => {
-            port = v4.port();
-            host = Host::Ipv4(*v4.ip())
-        }
-        SocketAddr::V6(v6) => {
-            port = v6.port();
-            host = Host::Ipv6(*v6.ip())
-        }
-    };
-
-    let url = Origin::Tuple("httpm".to_string(), host, port).ascii_serialization();
-    Ok(url::Url::parse(&url).expect("origin parses as url"))
 }
 
 impl HeaderMut for SSDPMessage {

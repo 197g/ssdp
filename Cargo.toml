@@ -19,7 +19,6 @@ headers = "0.4"
 httparse = "1.10"
 net2 = "0.2.23"
 netdev = "0.32.0"
-url = "2"
 quick-error = "2"
 
 [features]
